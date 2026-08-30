@@ -11,7 +11,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 test('package and lock versions are the single synchronized release version', () => {
   const packageJson = JSON.parse(read('package.json'));
   const packageLock = JSON.parse(read('package-lock.json'));
-  assert.equal(packageJson.version, '1.1.0');
+  assert.equal(packageJson.version, '1.1.1');
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageJson.name, 'vofa-justfloat-engine-config');
@@ -47,4 +47,5 @@ test('tag workflow publishes setup and portable zip but not the portable folder'
   assert.match(packageScript, /_portable\.zip`/);
   assert.match(packageScript, /_setup\.exe`/);
   assert.match(packageScript, /'--publish', 'never'/);
+  assert.match(packageScript, /entry === 'latest\.yml'/);
 });

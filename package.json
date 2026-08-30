@@ -1,6 +1,6 @@
 {
   "name": "vofa-justfloat-engine-config",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "author": "VOFA+",
   "description": "Visual configuration and Release builder for VOFA+ JustFloat-compatible data engines.",

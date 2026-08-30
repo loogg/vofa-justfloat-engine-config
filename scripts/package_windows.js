@@ -47,7 +47,10 @@ if (fs.existsSync(portableDirectory)) fs.rmSync(assertInsideDist(portableDirecto
 fs.renameSync(unpackedDirectory, portableDirectory);
 
 for (const entry of fs.readdirSync(distDirectory)) {
-  if (entry === 'builder-debug.yml' || entry === 'builder-effective-config.yaml' || entry.endsWith('.blockmap')) {
+  if (entry === 'latest.yml'
+      || entry === 'builder-debug.yml'
+      || entry === 'builder-effective-config.yaml'
+      || entry.endsWith('.blockmap')) {
     fs.rmSync(assertInsideDist(path.join(distDirectory, entry)), { force: true });
   }
 }
