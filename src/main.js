@@ -487,7 +487,7 @@ function createWindow() {
 registerIpcHandlers();
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('plus.vofa.justfloat-engine-builder');
+  app.setAppUserModelId('plus.vofa.justfloat-engine-config');
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

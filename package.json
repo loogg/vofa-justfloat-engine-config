@@ -1,16 +1,17 @@
 {
-  "name": "justfloat-engine-builder",
-  "version": "1.0.0",
+  "name": "vofa-justfloat-engine-config",
+  "version": "1.1.0",
   "private": true,
   "author": "VOFA+",
-  "description": "Visual generator and Release builder for configurable VOFA+ JustFloat-compatible data engines.",
+  "description": "Visual configuration and Release builder for VOFA+ JustFloat-compatible data engines.",
   "main": "src/main.js",
   "type": "commonjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "pack:win": "electron-builder --win portable --x64",
-    "dist": "npm run pack:win"
+    "verify:version": "node scripts/verify_version.js",
+    "pack:win": "node scripts/package_windows.js",
+    "dist": "npm run verify:version && npm run pack:win"
   },
   "devDependencies": {
     "@fluentui/svg-icons": "1.1.338",
@@ -19,8 +20,8 @@
   },
   "license": "MIT",
   "build": {
-    "appId": "plus.vofa.justfloat-engine-builder",
-    "productName": "VOFA+ JustFloat Engine Builder",
+    "appId": "plus.vofa.justfloat-engine-config",
+    "productName": "VOFA+ JustFloat Engine Config",
     "asar": true,
     "compression": "normal",
     "directories": {
@@ -37,13 +38,27 @@
       "icon": "assets/app-icon.ico",
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
           "arch": [
             "x64"
           ]
         }
       ],
-      "artifactName": "VOFA-JustFloat-Engine-Builder-${version}-${arch}.${ext}"
+      "artifactName": "VOFA_JustFloat_Engine_Config_x64_${version}_portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "VOFA+ JustFloat Engine Config",
+      "artifactName": "VOFA_JustFloat_Engine_Config_x64_${version}_setup.${ext}"
     }
   }
 }

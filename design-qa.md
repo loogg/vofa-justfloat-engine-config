@@ -7,6 +7,9 @@
   - `design-qa-assets/source-repository-fixed.png` — fixed repository fields that prevented standalone distribution.
   - `design-qa-assets/source-overflow-font-1306x781.png` — the user's selected-field state showing the local editor overflow and typography concern.
   - `design-qa-assets/source-word-card-ambiguity.png` — the compact Word cards that visually merged `Word 0` with `1 字段`, and exposed the lack of channel-region grouping.
+  - `design-qa-assets/source-selected-region.png` — the overly strong selected-region treatment.
+  - `design-qa-assets/source-native-confirm.png` — the browser/OS confirmation dialog that did not match the app.
+  - `design-qa-assets/source-flat-channel-list.png` — the flat output list without Word parent nodes.
   - The user's written Fluent 2 brief is authoritative for intentional visual changes: compact Windows utility, 4px spacing grid, 28–32px controls, neutral surfaces, one accent color, thin borders, low decoration, no gradients/glass/hero/dashboard treatment.
 - Final implementation:
   - `design-qa-assets/implementation-sidebar-project-1280x820.png`
@@ -18,11 +21,16 @@
   - `design-qa-assets/implementation-channel-v2-1306x781.png` — final Word/channel-region/table design.
   - `design-qa-assets/implementation-channel-v2-980x680.png` — final minimum-window channel design.
   - `design-qa-assets/implementation-select-focus-detail.png` — focused Win11 dropdown treatment.
+  - `design-qa-assets/implementation-selection-v11.png` — final restrained selected-field treatment.
+  - `design-qa-assets/implementation-confirm-v11.png` — final in-app Fluent confirmation dialog.
+  - `design-qa-assets/implementation-description-dialog-v11.png` — final offline three-language generation confirmation.
 - Combined comparison inputs:
   - `design-qa-assets/comparison-full-v2.png`
   - `design-qa-assets/comparison-focused-v2.png`
   - `design-qa-assets/comparison-overflow-font-v3.png`
   - `design-qa-assets/comparison-word-card-v4.png`
+  - `design-qa-assets/comparison-selection-v5.png`
+  - `design-qa-assets/comparison-confirm-v5.png`
 - Viewport and density: 1280×820, 980×680, and the user's exact 1306×781 selected-field state at device scale factor 1. The 1305px-wide source image was normalized by one pixel to 1306×781 for the side-by-side comparison. No browser or device chrome was compared.
 - State: first page “工程设置”, second page “通道布局”, third page “构建输出”; repository intentionally unselected to exercise the visible missing-environment state.
 
@@ -54,6 +62,10 @@ The focused comparison covers the original hero/engine area against the final la
 - Word cards expose `Word`, the index badge, field count, and `used/32 bits` as separate nodes. A 32-bit channel renders as one channel-colored region across all four Byte rows with one `chN` label per row, so it cannot be mistaken for a one-byte field.
 - Hovering a current-Word channel region highlights the matching output row; hovering a table row highlights its Word card/usage bar and, when visible, the matching bit region. Physical `ch` colors remain stable when the table view is sorted.
 - All selects use native keyboard behavior with `appearance:none`, an external Microsoft Fluent chevron mask, Win11 hover/focus/disabled states, and no horizontal overflow.
+- Selected fields retain their channel color, use only the region outer edge plus a compact `已选 ch · type · bytes` summary, and do not outline every internal bit cell.
+- Output channels use a semantic `treegrid`: Word rows are level-1 expandable parents, ch rows are level-2 children, and collapsed state is keyboard accessible.
+- Destructive and replacement actions use the app's Fluent modal instead of `window.confirm`; the dialog states the affected Word/channel count and uses explicit danger/warning actions.
+- Standard Simplified Chinese, Traditional Chinese, and English descriptions are generated locally from the current layout. QA confirms three non-empty, distinct descriptions containing the current Word mapping, with no network translation call.
 
 ## Comparison history
 
@@ -62,6 +74,7 @@ The focused comparison covers the original hero/engine area against the final la
 3. Icon polish: the first icon silhouette was too horizontal at taskbar size. It was recomposed as a square 2×2 byte block with three output nodes, flattened to solid colors, given real alpha, and exported to nine PNG sizes plus ICO.
 4. User follow-up: the selected-field editor could temporarily exceed its grid track by roughly 5–6px during cold font/layout resolution, while traditional Segoe UI plus global antialiasing made Chinese text look too dark and inconsistent. The editor now owns an explicit `minmax(0,1fr)` track, every child is width/min-width constrained, and the Win11 variable/UI font stack uses regular weights for controls. Final 1306×781 and 980×680 captures show zero local overflow.
 5. User follow-up: Word indices and field counts visually concatenated (`01 / 11 / 21`), select arrows looked browser-native, and 32-bit fields appeared as isolated bit cells. The cards now use a distinct index badge and second-line usage, selects use a real Fluent chevron, the table has a dedicated Word column, and every physical `ch` receives a stable pastel color shared by its full region and table badges. Bidirectional hover checks and both viewports pass; `channel-v2-computed.json` records the measured states.
+6. User follow-up: selected 32-bit regions still looked fully outlined, confirmations used an unrelated native window, and the channel list needed Word nodes. Selection now emphasizes only the outer region and summary chip; confirmation is an in-app Fluent dialog; output is a collapsible Word→ch tree. `v11-qa.json` confirms 32 selected cells with zero internal outlines, four Word parents, eight Word-0 children, functional collapse, three distinct generated languages, no horizontal overflow, and no console errors.
 
 ## Findings
 

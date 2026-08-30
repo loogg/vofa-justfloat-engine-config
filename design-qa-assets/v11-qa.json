@@ -1,0 +1,37 @@
+{
+  "selectionMetrics": {
+    "selectedCells": 32,
+    "internalOutlines": 0,
+    "summary": "已选 ch8 · float · 4 Bytes",
+    "summaryHidden": false,
+    "parentCount": 4,
+    "word0Children": 8,
+    "word0Expanded": "true",
+    "horizontalOverflow": false
+  },
+  "dialogMetrics": {
+    "open": true,
+    "title": "清空 Word 1？",
+    "nativeConfirmCalls": 0
+  },
+  "translationMetrics": {
+    "languages": [
+      "SimplifiedChinese",
+      "TraditionalChinese",
+      "English"
+    ],
+    "nonEmpty": true,
+    "distinct": true,
+    "containsWord": true
+  },
+  "treeMetrics": {
+    "word0Expanded": "false",
+    "visibleWord0Children": 0,
+    "treegrid": "treegrid"
+  },
+  "responsive": {
+    "horizontalOverflow": false,
+    "workspaceOverflow": 0
+  },
+  "consoleErrors": []
+}

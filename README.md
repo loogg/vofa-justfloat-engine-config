@@ -7,7 +7,7 @@
 需要 Windows x64、Node.js/npm，以及可用的 Qt 5.14.2 MSVC2017 64-bit Release 构建环境。
 
 ```powershell
-cd tools\justfloat-engine-builder
+cd vofa-justfloat-engine-config
 npm install
 npm start
 ```
@@ -25,7 +25,12 @@ npm install
 
 ## 配置与产物
 
-一个原 JustFloat 浮点通道仍占用并按 4 字节对齐，但现在可以在这 4 字节内配置 `bit`、`uint8`、`uint16`、`uint32` 或 `float` 字段。用户只需填写一个英文引擎名称，工具会确定性派生显示名、qmake target、C++ 类名、插件 IID、DLL 与 JSON 文件名。三语 `format`、`example`、`url` 描述都可以在界面中编辑。
+一个原 JustFloat 浮点通道仍占用并按 4 字节对齐，但现在可以在这 4 字节内配置 `bit`、`uint8`、`uint16`、`uint32` 或 `float` 字段。用户只需填写一个英文引擎名称，工具会确定性派生显示名、qmake target、C++ 类名、插件 IID、DLL 与 JSON 文件名。
+
+- 通道区域按物理 `ch` 着色，并与 Word 节点和输出树双向联动。
+- 输出通道以 Word 为父节点、ch 为子节点展示，可以折叠。
+- 三语 `format`、`example`、`url` 可以手工编辑，也可以根据当前布局在本机自动生成简中、繁中和英文标准描述。
+- 自由文本不会发送到在线翻译服务；如需任意文案翻译，需要后续配置独立的翻译提供方。
 
 “生成”只创建或更新自定义 Qt 数据引擎源码；“Release 构建”会生成源码并调用 Qt/MSVC 工具链。生成源码与 `justfloat` 同级，运行产物仍遵循仓库现有的 `generated` 约定：
 
@@ -43,11 +48,28 @@ dataengines/generated/win64/<targetName>.dll
 npm test
 ```
 
-生成可单独发布的 Windows x64 便携 EXE：
+生成本地 Windows x64 发布包：
 
 ```powershell
 npm run dist
 ```
+
+输出目录包含：
+
+```text
+dist/VOFA_JustFloat_Engine_Config_x64_<version>_portable/
+dist/VOFA_JustFloat_Engine_Config_x64_<version>_portable.zip
+dist/VOFA_JustFloat_Engine_Config_x64_<version>_setup.exe
+```
+
+## 版本与 GitHub Release
+
+- 版本唯一来源是 `package.json`。
+- 创建并推送 `v<version>` tag 后，GitHub Actions 会自动测试和打包。
+- GitHub Release 只包含 `portable.zip` 与 `setup.exe`，不上传 portable 文件夹。
+- 版本规则和提交要求见 `AGENTS.md`。
+
+项目主页：[loogg/vofa-justfloat-engine-config](https://github.com/loogg/vofa-justfloat-engine-config)
 
 应用图标位于 `assets/app-icon.png` 和 `assets/app-icon.ico`；界面控件图标来自 Microsoft Fluent UI System Icons，第三方说明见 `THIRD_PARTY_NOTICES.md`。
 

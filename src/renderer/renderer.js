@@ -91,8 +91,8 @@
     "dataengines-preview", "open-environment", "environment-status-icon", "environment-summary",
     "engine-name", "word-count", "word-count-minus", "word-count-plus", "frame-byte-count",
     "derived-target", "derived-class", "derived-dll", "derived-json", "engine-error", "stat-words",
-    "stat-fields", "stat-used", "layout-stat-words", "layout-stat-fields", "description-tabs", "description-language-name", "description-format",
-    "description-example", "description-url", "word-list", "word-list-count", "selected-word-label",
+    "stat-fields", "stat-used", "layout-stat-words", "layout-stat-fields", "generate-descriptions", "description-tabs", "description-language-name", "description-format",
+    "description-example", "description-url", "word-list", "word-list-count", "selected-word-label", "selection-summary",
     "bit-grid", "editor-mode", "editor-word", "field-name", "field-type", "field-offset", "offset-hint",
     "allocation-range", "allocation-size", "field-error", "commit-field", "delete-field", "reset-editor",
     "field-editor", "fill-floats", "clear-word", "channel-sort", "channel-count", "channel-table-body",
@@ -102,7 +102,8 @@
     "environment-state-heading", "environment-state-detail", "environment-check-list", "environment-messages",
     "refresh-environment", "save-environment", "env-repo-root", "env-data-engines", "env-qmake", "env-jom",
     "env-vcvars", "env-kit-name", "build-environment-status-icon", "build-environment-title",
-    "build-environment-detail", "open-environment-build", "toast-region"
+    "build-environment-detail", "open-environment-build", "confirm-dialog", "confirm-form", "confirm-icon",
+    "confirm-title", "confirm-message", "confirm-detail", "confirm-cancel", "confirm-action", "toast-region"
   ];
 
   const dom = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
@@ -115,6 +116,7 @@
     activePage: "project",
     selectedWord: 0,
     editingId: null,
+    collapsedWords: new Set(),
     activeLanguage: "SimplifiedChinese",
     channelSort: "physical",
     configPath: "",
@@ -164,6 +166,48 @@
         name: `ch${index}`
       })),
       descriptions: defaultDescriptions()
+    };
+  }
+
+  function generateDescriptionsFromLayout(config) {
+    const fields = [...config.fields].sort((left, right) =>
+      left.wordIndex - right.wordIndex || left.bitOffset - right.bitOffset || left.name.localeCompare(right.name)
+    );
+    const payloadBytes = config.wordCount * 4;
+    const url = config.descriptions?.SimplifiedChinese?.url
+      || "https://www.vofa.plus/docs/learning/dataengines/introduce";
+    const lines = {
+      SimplifiedChinese: fields.map((field, index) =>
+        `- ch${index} ${field.name}：Word ${field.wordIndex}，${formatByteRange(field.bitOffset, typeWidth(field.type))}，${formatRange(field.bitOffset, typeWidth(field.type))}，${field.type}`
+      ),
+      TraditionalChinese: fields.map((field, index) =>
+        `- ch${index} ${field.name}：Word ${field.wordIndex}，${formatByteRange(field.bitOffset, typeWidth(field.type))}，${formatRange(field.bitOffset, typeWidth(field.type))}，${field.type}`
+      ),
+      English: fields.map((field, index) =>
+        `- ch${index} ${field.name}: Word ${field.wordIndex}, ${formatByteRange(field.bitOffset, typeWidth(field.type))}, ${formatRange(field.bitOffset, typeWidth(field.type))}, ${field.type}`
+      )
+    };
+    const examples = {
+      SimplifiedChinese: `uint8_t frame[${payloadBytes + 4}] = {0};\n/* 按描述写入前 ${payloadBytes} 字节的数据区 */\nframe[${payloadBytes}] = 0x00; frame[${payloadBytes + 1}] = 0x00;\nframe[${payloadBytes + 2}] = 0x80; frame[${payloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
+      TraditionalChinese: `uint8_t frame[${payloadBytes + 4}] = {0};\n/* 按描述寫入前 ${payloadBytes} 位元組的資料區 */\nframe[${payloadBytes}] = 0x00; frame[${payloadBytes + 1}] = 0x00;\nframe[${payloadBytes + 2}] = 0x80; frame[${payloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
+      English: `uint8_t frame[${payloadBytes + 4}] = {0};\n/* Fill the first ${payloadBytes} payload bytes using the layout above. */\nframe[${payloadBytes}] = 0x00; frame[${payloadBytes + 1}] = 0x00;\nframe[${payloadBytes + 2}] = 0x80; frame[${payloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`
+    };
+    return {
+      SimplifiedChinese: {
+        format: `${config.engineName} 使用固定长度小端帧：${config.wordCount} 个 Word（${payloadBytes} 字节数据区），随后为帧尾 00 00 80 7F。\n输出通道：\n${lines.SimplifiedChinese.join("\n")}`,
+        example: examples.SimplifiedChinese,
+        url
+      },
+      TraditionalChinese: {
+        format: `${config.engineName} 使用固定長度小端幀：${config.wordCount} 個 Word（${payloadBytes} 位元組資料區），隨後為幀尾 00 00 80 7F。\n輸出通道：\n${lines.TraditionalChinese.join("\n")}`,
+        example: examples.TraditionalChinese,
+        url
+      },
+      English: {
+        format: `${config.engineName} uses a fixed-length little-endian frame with ${config.wordCount} Words (${payloadBytes} payload bytes), followed by 00 00 80 7F.\nOutput channels:\n${lines.English.join("\n")}`,
+        example: examples.English,
+        url
+      }
     };
   }
 
@@ -584,6 +628,41 @@
     });
   }
 
+  function showConfirmDialog({ title, message, detail = "", confirmLabel = "继续", tone = "default" }) {
+    const dialog = dom["confirm-dialog"];
+    dom["confirm-title"].textContent = title;
+    dom["confirm-message"].textContent = message;
+    dom["confirm-detail"].textContent = detail;
+    dom["confirm-detail"].hidden = !detail;
+    dom["confirm-action"].textContent = confirmLabel;
+    dom["confirm-action"].className = `button ${tone === "danger" ? "button-danger" : "button-primary"}`;
+    dom["confirm-icon"].className = `confirm-icon${tone === "danger" ? " is-danger" : tone === "warning" ? " is-warning" : ""}`;
+    dom["confirm-icon"].innerHTML = `<span class="icon icon-${tone === "danger" ? "delete" : "warning"}"></span>`;
+    dialog.returnValue = "cancel";
+    return new Promise((resolve) => {
+      dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once: true });
+      dialog.showModal();
+      window.setTimeout(() => dom["confirm-action"].focus(), 0);
+    });
+  }
+
+  async function regenerateDescriptions() {
+    if (state.busy) return;
+    const confirmed = await showConfirmDialog({
+      title: "根据布局生成三语描述",
+      message: "将覆盖简体中文、繁體中文和 English 的 format 与 example。",
+      detail: "描述只根据当前 Word、字段类型和位置在本机生成，不会上传配置或调用在线翻译服务。",
+      confirmLabel: "生成三语",
+      tone: "warning"
+    });
+    if (!confirmed) return;
+    state.config.descriptions = generateDescriptionsFromLayout(state.config);
+    markDirty();
+    renderDescriptionEditor();
+    appendLog("已根据当前布局生成三语 JSON 描述。", "success");
+    showToast("三语描述已生成", `${state.config.fields.length} 个通道，${state.config.wordCount} 个 Word。`, "success");
+  }
+
   function renderWordList() {
     const list = dom["word-list"];
     list.replaceChildren();
@@ -640,6 +719,19 @@
     grid.replaceChildren();
     const outputIndexById = physicalChannelIndexMap();
     dom["selected-word-label"].textContent = `Word ${state.selectedWord}`;
+    const selectedField = state.config.fields.find((field) => field._uiId === state.editingId);
+    if (selectedField) {
+      const selectedChannel = outputIndexById.get(selectedField._uiId);
+      dom["selection-summary"].hidden = false;
+      dom["selection-summary"].textContent = `已选 ch${selectedChannel} · ${selectedField.type} · ${formatStorageSize(typeWidth(selectedField.type))}`;
+      applyChannelPresentation(dom["selection-summary"], selectedField._uiId, selectedChannel);
+    } else {
+      dom["selection-summary"].hidden = true;
+      dom["selection-summary"].textContent = "";
+      dom["selection-summary"].removeAttribute("data-field-id");
+      dom["selection-summary"].removeAttribute("data-channel-index");
+      dom["selection-summary"].removeAttribute("style");
+    }
     for (let byteIndex = 0; byteIndex < 4; byteIndex += 1) {
       const row = document.createElement("div");
       row.className = "byte-row";
@@ -703,61 +795,107 @@
   function renderChannelTable() {
     const physical = sortedFields();
     const outputIndexById = physicalChannelIndexMap();
-    const fields = viewedFields();
     const body = dom["channel-table-body"];
     body.replaceChildren();
     dom["channel-count"].textContent = String(physical.length);
-    dom["empty-table"].hidden = fields.length !== 0;
-    document.querySelector(".channel-table").hidden = fields.length === 0;
-    fields.forEach((field) => {
-      const meta = TYPE_META[field.type];
-      const channelIndex = outputIndexById.get(field._uiId);
-      const row = document.createElement("tr");
-      applyChannelPresentation(row, field._uiId, channelIndex);
-      if (field._uiId === state.editingId) row.classList.add("is-selected-field");
-      row.tabIndex = 0;
-      row.title = `ch${channelIndex} · Word ${field.wordIndex} · ${field.type} · ${formatStorageSize(meta.width)}`;
-      const channel = document.createElement("td");
-      channel.className = "channel-index";
-      const channelBadge = document.createElement("span");
-      channelBadge.className = "channel-index-badge";
-      channelBadge.textContent = `ch${channelIndex}`;
-      channel.append(channelBadge);
-      const name = document.createElement("td");
-      name.className = "channel-name";
-      name.textContent = field.name;
-      const word = document.createElement("td");
-      word.className = "word-cell";
-      const wordBadge = document.createElement("span");
-      wordBadge.className = "word-badge";
-      wordBadge.textContent = `Word ${field.wordIndex}`;
-      word.append(wordBadge);
-      const type = document.createElement("td");
-      const typeChip = document.createElement("span");
-      typeChip.className = `type-chip type-${field.type}`;
-      typeChip.textContent = field.type;
-      type.append(typeChip);
-      const position = document.createElement("td");
-      position.className = "channel-position";
-      const byteRange = document.createElement("span");
-      byteRange.className = "position-primary position-bytes";
-      byteRange.textContent = formatByteRange(field.bitOffset, meta.width);
-      const bitRange = document.createElement("span");
-      bitRange.className = "position-secondary position-bits";
-      bitRange.textContent = formatRange(field.bitOffset, meta.width);
-      position.append(byteRange, bitRange);
-      const conversion = document.createElement("td");
-      conversion.textContent = meta.conversion;
-      const action = document.createElement("td");
-      const edit = document.createElement("button");
-      edit.type = "button";
-      edit.className = "row-edit";
-      edit.textContent = "编辑";
-      edit.dataset.fieldId = field._uiId;
-      action.append(edit);
-      row.append(channel, name, word, type, position, conversion, action);
-      body.append(row);
-    });
+    dom["empty-table"].hidden = true;
+    document.querySelector(".channel-table").hidden = false;
+
+    for (let wordIndex = 0; wordIndex < state.config.wordCount; wordIndex += 1) {
+      let fields = physical.filter((field) => field.wordIndex === wordIndex);
+      if (state.channelSort === "name") fields = [...fields].sort((left, right) => left.name.localeCompare(right.name, "zh-CN"));
+      if (state.channelSort === "type") fields = [...fields].sort((left, right) => left.type.localeCompare(right.type) || left.bitOffset - right.bitOffset);
+      const usedBits = fields.reduce((sum, field) => sum + typeWidth(field.type), 0);
+      const collapsed = state.collapsedWords.has(wordIndex);
+
+      const parent = document.createElement("tr");
+      parent.className = "word-tree-row";
+      parent.dataset.wordIndex = String(wordIndex);
+      parent.setAttribute("role", "row");
+      parent.setAttribute("aria-level", "1");
+      parent.setAttribute("aria-expanded", String(!collapsed));
+      const parentCell = document.createElement("td");
+      parentCell.colSpan = 6;
+      const parentButton = document.createElement("button");
+      parentButton.type = "button";
+      parentButton.className = "word-tree-toggle";
+      parentButton.dataset.wordToggle = String(wordIndex);
+      parentButton.setAttribute("aria-label", `${collapsed ? "展开" : "折叠"} Word ${wordIndex}`);
+      const chevron = document.createElement("span");
+      chevron.className = `icon ${collapsed ? "icon-chevron-right" : "icon-chevron-down"}`;
+      const title = document.createElement("strong");
+      title.textContent = `Word ${wordIndex}`;
+      const summary = document.createElement("span");
+      summary.textContent = fields.length ? `${fields.length} 个通道 · 已用 ${usedBits}/32 bits` : "空白 · 0 个通道";
+      const usageBar = document.createElement("span");
+      usageBar.className = "tree-word-bar";
+      for (let bit = 0; bit < 32; bit += 1) {
+        const field = fields.find((item) => bit >= item.bitOffset && bit < item.bitOffset + typeWidth(item.type));
+        const segment = document.createElement("i");
+        if (field) applyChannelPresentation(segment, field._uiId, outputIndexById.get(field._uiId));
+        usageBar.append(segment);
+      }
+      parentButton.append(chevron, title, summary, usageBar);
+      parentCell.append(parentButton);
+      parent.append(parentCell);
+      body.append(parent);
+
+      if (collapsed) continue;
+      fields.forEach((field) => {
+        const meta = TYPE_META[field.type];
+        const channelIndex = outputIndexById.get(field._uiId);
+        const row = document.createElement("tr");
+        row.className = "channel-tree-row";
+        row.dataset.parentWord = String(wordIndex);
+        applyChannelPresentation(row, field._uiId, channelIndex);
+        if (field._uiId === state.editingId) row.classList.add("is-selected-field");
+        row.tabIndex = 0;
+        row.setAttribute("role", "row");
+        row.setAttribute("aria-level", "2");
+        row.title = `ch${channelIndex} · Word ${field.wordIndex} · ${field.type} · ${formatStorageSize(meta.width)}`;
+
+        const channel = document.createElement("td");
+        channel.className = "channel-index";
+        const treeCell = document.createElement("span");
+        treeCell.className = "tree-channel-cell";
+        const connector = document.createElement("span");
+        connector.className = "tree-connector";
+        const channelBadge = document.createElement("span");
+        channelBadge.className = "channel-index-badge";
+        channelBadge.textContent = `ch${channelIndex}`;
+        treeCell.append(connector, channelBadge);
+        channel.append(treeCell);
+
+        const name = document.createElement("td");
+        name.className = "channel-name";
+        name.textContent = field.name;
+        const type = document.createElement("td");
+        const typeChip = document.createElement("span");
+        typeChip.className = `type-chip type-${field.type}`;
+        typeChip.textContent = field.type;
+        type.append(typeChip);
+        const position = document.createElement("td");
+        position.className = "channel-position";
+        const byteRange = document.createElement("span");
+        byteRange.className = "position-primary position-bytes";
+        byteRange.textContent = formatByteRange(field.bitOffset, meta.width);
+        const bitRange = document.createElement("span");
+        bitRange.className = "position-secondary position-bits";
+        bitRange.textContent = formatRange(field.bitOffset, meta.width);
+        position.append(byteRange, bitRange);
+        const conversion = document.createElement("td");
+        conversion.textContent = meta.conversion;
+        const action = document.createElement("td");
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "row-edit";
+        edit.textContent = "编辑";
+        edit.dataset.fieldId = field._uiId;
+        action.append(edit);
+        row.append(channel, name, type, position, conversion, action);
+        body.append(row);
+      });
+    }
   }
 
   function linkedFieldId(node, container) {
@@ -1042,9 +1180,17 @@
     render();
   }
 
-  function deleteEditingField() {
+  async function deleteEditingField() {
     const editing = state.config.fields.find((field) => field._uiId === state.editingId);
     if (!editing || state.busy) return;
+    const confirmed = await showConfirmDialog({
+      title: `删除 ${editing.name}？`,
+      message: `将从 Word ${editing.wordIndex} 删除该 ${editing.type} 通道。`,
+      detail: `${formatStorageSize(typeWidth(editing.type))} · ${formatRange(editing.bitOffset, typeWidth(editing.type))}`,
+      confirmLabel: "删除",
+      tone: "danger"
+    });
+    if (!confirmed) return;
     state.config.fields = state.config.fields.filter((field) => field._uiId !== editing._uiId);
     appendLog(`已删除字段 ${editing.name}。`, "warning");
     markDirty();
@@ -1074,6 +1220,7 @@
     }
     if (next === state.config.wordCount) return;
     state.config.wordCount = next;
+    state.collapsedWords = new Set([...state.collapsedWords].filter((wordIndex) => wordIndex < next));
     dom["word-count"].value = String(next);
     if (state.selectedWord >= next) state.selectedWord = next - 1;
     markDirty();
@@ -1081,10 +1228,19 @@
     render();
   }
 
-  function restoreFloatLayout() {
+  async function restoreFloatLayout() {
     if (state.busy) return;
     const alreadyFloat = state.config.fields.length === state.config.wordCount && state.config.fields.every((field) => field.type === "float" && field.bitOffset === 0);
-    if (!alreadyFloat && !window.confirm("这会替换全部字段，并为每个 4 字节单元恢复一个 float 通道。继续吗？")) return;
+    if (!alreadyFloat) {
+      const confirmed = await showConfirmDialog({
+        title: "恢复全 Float 布局？",
+        message: "当前字段将被替换，每个 Word 会恢复为一个 32-bit float 通道。",
+        detail: `${state.config.wordCount} 个 Word · ${state.config.fields.length} 个现有通道`,
+        confirmLabel: "恢复布局",
+        tone: "warning"
+      });
+      if (!confirmed) return;
+    }
     state.config.fields = Array.from({ length: state.config.wordCount }, (_, wordIndex) => ({
       _uiId: nextUiId(), wordIndex, type: "float", bitOffset: 0, name: `ch${wordIndex}`
     }));
@@ -1094,10 +1250,17 @@
     render();
   }
 
-  function clearCurrentWord() {
+  async function clearCurrentWord() {
     const fields = state.config.fields.filter((field) => field.wordIndex === state.selectedWord);
     if (!fields.length || state.busy) return;
-    if (!window.confirm(`确认删除 Word ${state.selectedWord} 中的 ${fields.length} 个字段吗？`)) return;
+    const confirmed = await showConfirmDialog({
+      title: `清空 Word ${state.selectedWord}？`,
+      message: `将删除该 Word 中的 ${fields.length} 个通道。`,
+      detail: "此操作只修改当前配置，保存前仍可重新载入原配置。",
+      confirmLabel: "清空 Word",
+      tone: "danger"
+    });
+    if (!confirmed) return;
     state.config.fields = state.config.fields.filter((field) => field.wordIndex !== state.selectedWord);
     markDirty();
     resetEditor();
@@ -1126,13 +1289,23 @@
 
   async function loadConfig() {
     if (!requireApi("openConfig")) return;
-    if (state.dirty && !window.confirm("当前配置有未保存的更改。仍要载入另一份配置吗？")) return;
+    if (state.dirty) {
+      const confirmed = await showConfirmDialog({
+        title: "放弃未保存的更改？",
+        message: "载入另一份配置会替换当前尚未保存的内容。",
+        detail: "建议先保存当前配置，以便之后继续编辑。",
+        confirmLabel: "继续载入",
+        tone: "warning"
+      });
+      if (!confirmed) return;
+    }
     try {
       const result = await api.openConfig();
       if (!result) return;
       state.config = normalizeConfig(result);
       state.configPath = stringValue(result.filePath);
       state.selectedWord = 0;
+      state.collapsedWords = new Set();
       state.activeLanguage = "SimplifiedChinese";
       state.activePage = "project";
       syncBasicInputs();
@@ -1566,6 +1739,7 @@
       state.activeLanguage = tab.dataset.language;
       renderDescriptionEditor();
     });
+    dom["generate-descriptions"].addEventListener("click", regenerateDescriptions);
     [["description-format", "format"], ["description-example", "example"], ["description-url", "url"]].forEach(([id, key]) => {
       dom[id].addEventListener("input", (event) => {
         state.config.descriptions[state.activeLanguage][key] = event.target.value;
@@ -1599,10 +1773,23 @@
     });
 
     dom["channel-table-body"].addEventListener("click", (event) => {
+      const wordToggle = event.target.closest("[data-word-toggle]");
+      if (wordToggle) {
+        const wordIndex = Number(wordToggle.dataset.wordToggle);
+        if (state.collapsedWords.has(wordIndex)) state.collapsedWords.delete(wordIndex);
+        else state.collapsedWords.add(wordIndex);
+        renderChannelTable();
+        return;
+      }
       const target = event.target.closest("[data-field-id]");
       if (target) editField(target.dataset.fieldId, true);
     });
     dom["channel-table-body"].addEventListener("keydown", (event) => {
+      if ((event.key === "Enter" || event.key === " ") && event.target.matches("[data-word-toggle]")) {
+        event.preventDefault();
+        event.target.click();
+        return;
+      }
       if ((event.key === "Enter" || event.key === " ") && event.target.matches("tr[data-field-id]")) {
         event.preventDefault();
         editField(event.target.dataset.fieldId, true);
