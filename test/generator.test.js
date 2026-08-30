@@ -180,6 +180,12 @@ test('generates beside justfloat, preserves sibling shared paths, and emits exac
   assert.match(source, /case 0:/);
   assert.match(source, /word >> 16/);
   assert.match(source, /word >> 31/);
+  assert.match(source, /& 0x80u\) != 0u/);
+  assert.match(source, /- 0x100\b/);
+  assert.match(source, /& 0x8000u\) != 0u/);
+  assert.match(source, /- 0x10000\b/);
+  assert.match(source, /& 0x80000000u\) != 0u/);
+  assert.match(source, /- 0x100000000LL\b/);
   assert.match(source, /default:[\s\S]*std::memcpy\(&value, data \+ offset/);
   assert.doesNotMatch(source, /count != expectedCount/);
   assert.doesNotMatch(source, /minimumCount/);
@@ -188,6 +194,7 @@ test('generates beside justfloat, preserves sibling shared paths, and emits exac
   assert.doesNotMatch(source, /JustFloat::/);
   assert.match(project, /^TARGET = customfloat$/m);
   assert.match(project, /\.\.\/shared\//);
+  assert.match(project, /^msvc:QMAKE_CXXFLAGS \+= \/utf-8$/m);
   assert.doesNotMatch(project, /\.\.\/\.\.\/\.\.\/shared\//);
   assert.deepEqual(description.SimplifiedChinese, sampleConfig.descriptions.SimplifiedChinese);
   assert.deepEqual(description.TraditionalChinese, sampleConfig.descriptions.TraditionalChinese);
@@ -216,7 +223,7 @@ test('restores the prior generated source when the staging-directory swap fails'
   const priorSource = fs.readFileSync(first.sourceFile);
   const priorMarker = fs.readFileSync(first.configFile);
   const changed = configFor('Rollback Engine');
-  changed.wordCount = 2;
+  changed.wordCount = 4;
 
   const originalRenameSync = fs.renameSync;
   fs.renameSync = (source, destination) => {

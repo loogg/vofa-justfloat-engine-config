@@ -3,22 +3,22 @@
   "engineName": "Custom Float",
   "descriptions": {
     "SimplifiedChinese": {
-      "format": "Custom Float 在帧中存在 Word 0 时将其拆分为 uint16、uint8 和 8 个 bit 通道；更短的帧直接输出已匹配部分，帧尾前的后续 Word 各自沿用 JustFloat 输出一个 float 通道。",
-      "example": "unsigned char frame[12] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // 后续 Word 为 2.5f",
+      "format": "Custom Float 将 Word 0 拆分为 uint16、uint8 和 8 个 bit 通道，将 Word 1、2 按小端补码拆分为 int8、int16、int8 和 int32 通道；更短的帧直接输出已匹配部分，帧尾前的后续 Word 各自沿用 JustFloat 输出一个 float 通道。",
+      "example": "unsigned char frame[20] = {0x34, 0x12, 0x56, 0xA5, 0x80, 0x00, 0x80, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // 有符号通道为 -128、-32768、-1、-4；后续 Word 为 2.5f",
       "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
     },
     "TraditionalChinese": {
-      "format": "Custom Float 在幀中存在 Word 0 時將其拆分為 uint16、uint8 和 8 個 bit 通道；更短的幀直接輸出已匹配部分，幀尾前的後續 Word 各自沿用 JustFloat 輸出一個 float 通道。",
-      "example": "unsigned char frame[12] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // 後續 Word 為 2.5f",
+      "format": "Custom Float 將 Word 0 拆分為 uint16、uint8 和 8 個 bit 通道，將 Word 1、2 按小端補碼拆分為 int8、int16、int8 和 int32 通道；更短的幀直接輸出已匹配部分，幀尾前的後續 Word 各自沿用 JustFloat 輸出一個 float 通道。",
+      "example": "unsigned char frame[20] = {0x34, 0x12, 0x56, 0xA5, 0x80, 0x00, 0x80, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // 有符號通道為 -128、-32768、-1、-4；後續 Word 為 2.5f",
       "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
     },
     "English": {
-      "format": "Custom Float splits Word 0 into uint16, uint8, and eight bit channels when that Word is present. Shorter frames emit only matched data; every later Word before the frame tail retains JustFloat behavior and emits one float channel.",
-      "example": "unsigned char frame[12] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // later Word is 2.5f",
+      "format": "Custom Float splits Word 0 into uint16, uint8, and eight bit channels, then decodes Words 1 and 2 as little-endian two's-complement int8, int16, int8, and int32 channels. Shorter frames emit only matched data; every later Word before the frame tail retains JustFloat behavior and emits one float channel.",
+      "example": "unsigned char frame[20] = {0x34, 0x12, 0x56, 0xA5, 0x80, 0x00, 0x80, 0xFF, 0xFC, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // signed channels: -128, -32768, -1, -4; later Word: 2.5f",
       "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
     }
   },
-  "wordCount": 1,
+  "wordCount": 3,
   "fields": [
     { "wordIndex": 0, "type": "uint16", "bitOffset": 0, "name": "counter16" },
     { "wordIndex": 0, "type": "uint8", "bitOffset": 16, "name": "status8" },
@@ -29,6 +29,10 @@
     { "wordIndex": 0, "type": "bit", "bitOffset": 28, "name": "flag4" },
     { "wordIndex": 0, "type": "bit", "bitOffset": 29, "name": "flag5" },
     { "wordIndex": 0, "type": "bit", "bitOffset": 30, "name": "flag6" },
-    { "wordIndex": 0, "type": "bit", "bitOffset": 31, "name": "flag7" }
+    { "wordIndex": 0, "type": "bit", "bitOffset": 31, "name": "flag7" },
+    { "wordIndex": 1, "type": "int8", "bitOffset": 0, "name": "signed8Low" },
+    { "wordIndex": 1, "type": "int16", "bitOffset": 8, "name": "signed16" },
+    { "wordIndex": 1, "type": "int8", "bitOffset": 24, "name": "signed8High" },
+    { "wordIndex": 2, "type": "int32", "bitOffset": 0, "name": "signed32" }
   ]
 }

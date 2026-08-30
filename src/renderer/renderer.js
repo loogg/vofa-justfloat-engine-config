@@ -27,6 +27,13 @@
       hint: "按 Byte 边界放置，共 4 个可选位置",
       conversion: "8-bit 无符号整数 → float"
     },
+    int8: {
+      label: "int8",
+      width: 8,
+      offsets: [0, 8, 16, 24],
+      hint: "按 Byte 边界放置，共 4 个可选位置",
+      conversion: "8-bit 有符号整数（补码）→ float"
+    },
     uint16: {
       label: "uint16",
       width: 16,
@@ -34,12 +41,26 @@
       hint: "按 Byte 边界放置，可从 Byte 0、1 或 2 开始",
       conversion: "16-bit 无符号整数 → float"
     },
+    int16: {
+      label: "int16",
+      width: 16,
+      offsets: [0, 8, 16],
+      hint: "按 Byte 边界放置，可从 Byte 0、1 或 2 开始",
+      conversion: "16-bit 有符号整数（补码）→ float"
+    },
     uint32: {
       label: "uint32",
       width: 32,
       offsets: [0],
       hint: "占满当前 4 字节数据单元",
       conversion: "32-bit 无符号整数 → float（注意精度）"
+    },
+    int32: {
+      label: "int32",
+      width: 32,
+      offsets: [0],
+      hint: "占满当前 4 字节数据单元",
+      conversion: "32-bit 有符号整数（补码）→ float（注意精度）"
     },
     float: {
       label: "float",
@@ -1144,8 +1165,8 @@
 
   function formatPosition(type, offset) {
     if (type === "bit") return `Bit ${offset}`;
-    if (type === "uint8") return `Byte ${offset / 8}`;
-    if (type === "uint16") return `Byte ${offset / 8}–${offset / 8 + 1}`;
+    if (typeWidth(type) === 8) return `Byte ${offset / 8}`;
+    if (typeWidth(type) === 16) return `Byte ${offset / 8}–${offset / 8 + 1}`;
     return "Byte 0–3";
   }
 

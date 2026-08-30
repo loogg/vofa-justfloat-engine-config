@@ -25,7 +25,7 @@ npm install
 
 ## 配置与产物
 
-一个原 JustFloat 浮点通道仍占用并按 4 字节对齐，但现在可以在这 4 字节内配置 `bit`、`uint8`、`uint16`、`uint32` 或 `float` 字段。用户只需填写一个英文引擎名称，工具会确定性派生显示名、qmake target、C++ 类名、插件 IID、DLL 与 JSON 文件名。
+一个原 JustFloat 浮点通道仍占用并按 4 字节对齐，但现在可以在这 4 字节内配置 `bit`、`uint8`、`int8`、`uint16`、`int16`、`uint32`、`int32` 或 `float` 字段。有符号整数按小端补码解码。用户只需填写一个英文引擎名称，工具会确定性派生显示名、qmake target、C++ 类名、插件 IID、DLL 与 JSON 文件名。
 
 - 通道区域按物理 `ch` 着色，并与 Word 节点和输出树双向联动。
 - 输出通道以 Word 为父节点、ch 为子节点展示，可以折叠。

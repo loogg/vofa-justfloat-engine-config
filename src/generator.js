@@ -22,8 +22,11 @@ const DESCRIPTION_LANGUAGES = Object.freeze([
 const FIELD_WIDTHS = Object.freeze({
   bit: 1,
   uint8: 8,
+  int8: 8,
   uint16: 16,
+  int16: 16,
   uint32: 32,
+  int32: 32,
   float: 32,
 });
 
@@ -325,7 +328,7 @@ function validateConfig(config) {
         ? FIELD_WIDTHS[field.type]
         : undefined;
       if (!width) {
-        errors.push(`${prefix}.type must be one of bit, uint8, uint16, uint32, or float.`);
+        errors.push(`${prefix}.type must be one of bit, uint8, int8, uint16, int16, uint32, int32, or float.`);
       }
 
       if (!Number.isInteger(field.bitOffset)) {
@@ -707,6 +710,30 @@ function currentWordExpression() {
   ].join('\n            | ');
 }
 
+function signedIntegerLines(field, channelIndex, width) {
+  const rawName = `raw${channelIndex}`;
+  const valueName = `signedValue${channelIndex}`;
+  const shiftedWord = field.bitOffset === 0
+    ? 'word'
+    : `(word >> ${field.bitOffset})`;
+  const masks = {
+    8: { value: '0xffu', sign: '0x80u', modulus: '0x100', signedType: 'qint32' },
+    16: { value: '0xffffu', sign: '0x8000u', modulus: '0x10000', signedType: 'qint32' },
+    32: { value: '0xffffffffu', sign: '0x80000000u', modulus: '0x100000000LL', signedType: 'qint64' },
+  };
+  const meta = masks[width];
+  const rawExpression = width === 32
+    ? shiftedWord
+    : `${shiftedWord} & ${meta.value}`;
+  return [
+    `            const quint32 ${rawName} = ${rawExpression};`,
+    `            const ${meta.signedType} ${valueName} = (${rawName} & ${meta.sign}) != 0u`,
+    `                ? static_cast<${meta.signedType}>(${rawName}) - ${meta.modulus}`,
+    `                : static_cast<${meta.signedType}>(${rawName});`,
+    `            dd.append(static_cast<float>(${valueName}));`,
+  ];
+}
+
 function parserLines(config) {
   const fields = sortedFields(config);
   const fieldsByWord = new Map();
@@ -735,11 +762,20 @@ function parserLines(config) {
         case 'uint8':
           lines.push(`            dd.append(static_cast<float>((word >> ${field.bitOffset}) & 0xffu));`);
           break;
+        case 'int8':
+          lines.push(...signedIntegerLines(field, channelIndex, 8));
+          break;
         case 'uint16':
           lines.push(`            dd.append(static_cast<float>((word >> ${field.bitOffset}) & 0xffffu));`);
           break;
+        case 'int16':
+          lines.push(...signedIntegerLines(field, channelIndex, 16));
+          break;
         case 'uint32':
           lines.push('            dd.append(static_cast<float>(word));');
+          break;
+        case 'int32':
+          lines.push(...signedIntegerLines(field, channelIndex, 32));
           break;
         case 'float':
           lines.push(`            float value${channelIndex} = 0.0f;`);
@@ -828,9 +864,13 @@ function rewriteProject(template, config) {
   output = output.replace(/^TARGET\s*=\s*justfloat\s*$/m, `TARGET = ${config.targetName}`);
   output = output.replace(/\bjustfloat\.cpp\b/g, `${config.targetName}.cpp`);
   output = output.replace(/\bjustfloat\.h\b/g, `${config.targetName}.h`);
+  if (!/^msvc:QMAKE_CXXFLAGS\s*\+=\s*\/utf-8\s*$/m.test(output)) {
+    output = `${output.trimEnd()}\n\nmsvc:QMAKE_CXXFLAGS += /utf-8\n`;
+  }
 
   if (!new RegExp(`^TARGET\\s*=\\s*${escapeRegExp(config.targetName)}\\s*$`, 'm').test(output)
-      || !output.includes('../shared/')) {
+      || !output.includes('../shared/')
+      || !/^msvc:QMAKE_CXXFLAGS\s*\+=\s*\/utf-8\s*$/m.test(output)) {
     throw createError('TEMPLATE_REWRITE_FAILED', 'Could not rewrite the JustFloat qmake project template.');
   }
   return output;

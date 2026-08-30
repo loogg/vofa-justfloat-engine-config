@@ -43,9 +43,11 @@ int main(int argc, char *argv[])
     if (!engine)
         return fail(QStringLiteral("plugin does not implement DataEngineInterface"), 7);
 
-    // counter16=0x1234, status8=0x56, flags=0xA5, followed by JustFloat tail.
+    // Unsigned/bit fields, signed fields (-128, -32768, -1, -4), then the tail.
     char validFrame[] = {
         char(0x34), char(0x12), char(0x56), char(0xA5),
+        char(0x80), char(0x00), char(0x80), char(0xFF),
+        char(0xFC), char(0xFF), char(0xFF), char(0xFF),
         char(0x00), char(0x00), char(0x80), char(0x7F)
     };
     engine->ProcessingDatas(validFrame, int(sizeof(validFrame)));
@@ -56,7 +58,8 @@ int main(int argc, char *argv[])
     const QVector<float> actual = validFrames.first().datas_;
     const QVector<float> expected = {
         4660.0f, 86.0f,
-        1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f
+        1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+        -128.0f, -32768.0f, -1.0f, -4.0f
     };
     if (actual.size() != expected.size())
         return fail(QStringLiteral("channel count mismatch: got %1, expected %2")
@@ -67,9 +70,11 @@ int main(int argc, char *argv[])
                         .arg(i).arg(actual.at(i)).arg(expected.at(i)), 10);
     }
 
-    // A configured one-word engine keeps later Words as ordinary JustFloat values.
+    // Words after the configured three-word prefix remain ordinary JustFloat values.
     char extendedFrame[] = {
         char(0x34), char(0x12), char(0x56), char(0xA5),
+        char(0x80), char(0x00), char(0x80), char(0xFF),
+        char(0xFC), char(0xFF), char(0xFF), char(0xFF),
         char(0x00), char(0x00), char(0x20), char(0x40), // 2.5f
         char(0x00), char(0x00), char(0x80), char(0x7F)
     };

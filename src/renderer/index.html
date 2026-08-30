@@ -162,7 +162,7 @@
                   </div>
                   <div class="bit-ruler" aria-hidden="true"><span></span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div>
                   <div class="bit-grid" id="bit-grid" aria-label="4 乘 8 位布局预览"></div>
-                  <div class="precision-note" id="precision-note"><span class="icon icon-info" aria-hidden="true"></span><span>所有通道最终写入 <code>QVector&lt;float&gt;</code>；uint32 超过 16,777,216 时可能损失整数精度。</span></div>
+                  <div class="precision-note" id="precision-note"><span class="icon icon-info" aria-hidden="true"></span><span>所有通道最终写入 <code>QVector&lt;float&gt;</code>；uint32 或 int32 的绝对值超过 16,777,216 时可能损失整数精度。</span></div>
                 </div>
                 <form class="field-editor" id="field-editor" novalidate>
                   <div class="editor-heading">
@@ -171,7 +171,7 @@
                   </div>
                   <label class="field-control"><span class="field-label">通道名称</span><input id="field-name" type="text" maxlength="48" spellcheck="false" autocomplete="off" placeholder="例如 status" /></label>
                   <div class="editor-row">
-                    <label class="field-control"><span class="field-label">字段类型</span><span class="select-shell"><select id="field-type"><option value="bit">bit · 1 bit</option><option value="uint8">uint8 · 1 Byte</option><option value="uint16">uint16 · 2 Bytes</option><option value="uint32">uint32 · 4 Bytes</option><option value="float">float · 4 Bytes</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
+                    <label class="field-control"><span class="field-label">字段类型</span><span class="select-shell"><select id="field-type"><option value="bit">bit · 1 bit</option><option value="uint8">uint8 · 1 Byte</option><option value="int8">int8 · 1 Byte</option><option value="uint16">uint16 · 2 Bytes</option><option value="int16">int16 · 2 Bytes</option><option value="uint32">uint32 · 4 Bytes</option><option value="int32">int32 · 4 Bytes</option><option value="float">float · 4 Bytes</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
                     <label class="field-control"><span class="field-label">单元内位置</span><span class="select-shell"><select id="field-offset"></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
                   </div>
                   <div class="allocation-row"><span id="offset-hint">Bit 位置 0–31</span><strong id="allocation-range">Bit 0</strong><span id="allocation-size">1 bit</span></div>

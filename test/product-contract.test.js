@@ -11,7 +11,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 test('package and lock versions are the single synchronized release version', () => {
   const packageJson = JSON.parse(read('package.json'));
   const packageLock = JSON.parse(read('package-lock.json'));
-  assert.equal(packageJson.version, '1.2.1');
+  assert.equal(packageJson.version, '1.3.0');
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageJson.name, 'vofa-justfloat-engine-config');
@@ -27,6 +27,10 @@ test('renderer uses Fluent confirmation, Word tree, and offline three-language g
   assert.match(html, /id="generate-descriptions"/);
   assert.match(html, /id="description-auto-sync"/);
   assert.match(html, /role="treegrid"/);
+  assert.match(html, /option value="int8"/);
+  assert.match(html, /option value="int16"/);
+  assert.match(html, /option value="int32"/);
+  assert.match(html, /uint32 或 int32/);
   assert.doesNotMatch(renderer, /window\.confirm/);
   assert.match(renderer, /function showConfirmDialog/);
   assert.match(renderer, /function generateDescriptionsFromLayout/);
