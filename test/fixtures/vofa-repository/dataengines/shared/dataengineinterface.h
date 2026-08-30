@@ -101,4 +101,3 @@ Q_DECLARE_INTERFACE(DataEngineInterface, DataEngineInterface_iid)
 QT_END_NAMESPACE
 
 #endif // DATAENGINEINTERFACE_H
-

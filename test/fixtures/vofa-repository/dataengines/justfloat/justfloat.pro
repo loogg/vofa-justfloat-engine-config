@@ -52,4 +52,3 @@ unix:!macx {
     target.path = /home/je00/vofa+_publish/plugins/dataengines
     INSTALLS += target
 }
-

@@ -19,4 +19,3 @@ private:
     uint32_t image_count_mutation_count_ = 0;
 };
 #endif // JUSTFLOAT_H
-

@@ -11,8 +11,6 @@ JustFloat::~JustFloat()
 {
 
 }
-
-
 bool JustFloat::ProcessingFrame(char *data, int count, QVector<float> &dd)
 {
     if (count <= 0)
@@ -128,6 +126,5 @@ void JustFloat::ProcessingDatas(char *data, int count)
 
     }
 }
-
 
 
