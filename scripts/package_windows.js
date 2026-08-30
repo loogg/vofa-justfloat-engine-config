@@ -24,7 +24,9 @@ if (fs.existsSync(distDirectory)) fs.rmSync(assertInsideDist(distDirectory), { r
 
 const executable = process.execPath;
 const builderCli = path.join(packageRoot, 'node_modules', 'electron-builder', 'cli.js');
-const args = [builderCli, '--win', 'nsis', 'zip', '--x64'];
+// A pushed version tag makes electron-builder attempt an implicit GitHub publish.
+// Publishing belongs to the release workflow so artifact creation must stay local.
+const args = [builderCli, '--win', 'nsis', 'zip', '--x64', '--publish', 'never'];
 const localElectron = path.join(packageRoot, 'node_modules', 'electron', 'dist');
 if (fs.existsSync(localElectron)) args.push(`--config.electronDist=${localElectron}`);
 

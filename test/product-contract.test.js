@@ -46,4 +46,5 @@ test('tag workflow publishes setup and portable zip but not the portable folder'
   assert.match(packageScript, /_portable`/);
   assert.match(packageScript, /_portable\.zip`/);
   assert.match(packageScript, /_setup\.exe`/);
+  assert.match(packageScript, /'--publish', 'never'/);
 });
