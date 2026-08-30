@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build and release output
+dist/
+out/
+release/
+build/
+test/build*/
+*.blockmap
+*.exe
+*.zip
+
+# Test coverage and caches
+coverage/
+.nyc_output/
+.cache/
+.electron/
+.playwright-cli/
+__pycache__/
+*.pyc
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.tmp-*
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Local environment and editor state
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+*.code-workspace
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini

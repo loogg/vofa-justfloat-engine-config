@@ -1,0 +1,766 @@
+{
+  "generatedAt": "2026-08-29T16:35:42.654Z",
+  "renderer": "D:/VOFA+/Vodka/tools/justfloat-engine-builder/src/renderer/index.html",
+  "viewports": {
+    "1306x781": {
+      "wordCards": [
+        {
+          "ariaLabel": "Word 0，1 个字段，已用 32/32 bits",
+          "label": "Word",
+          "index": "0",
+          "stats": "1 个字段",
+          "usage": "已用 32/32 bits",
+          "distinctNodes": true,
+          "horizontalOrder": true,
+          "gapsPx": [
+            4,
+            28
+          ]
+        },
+        {
+          "ariaLabel": "Word 1，1 个字段，已用 32/32 bits",
+          "label": "Word",
+          "index": "1",
+          "stats": "1 个字段",
+          "usage": "已用 32/32 bits",
+          "distinctNodes": true,
+          "horizontalOrder": true,
+          "gapsPx": [
+            4,
+            28
+          ]
+        },
+        {
+          "ariaLabel": "Word 2，1 个字段，已用 32/32 bits",
+          "label": "Word",
+          "index": "2",
+          "stats": "1 个字段",
+          "usage": "已用 32/32 bits",
+          "distinctNodes": true,
+          "horizontalOrder": true,
+          "gapsPx": [
+            4,
+            28
+          ]
+        },
+        {
+          "ariaLabel": "Word 3，1 个字段，已用 32/32 bits",
+          "label": "Word",
+          "index": "3",
+          "stats": "1 个字段",
+          "usage": "已用 32/32 bits",
+          "distinctNodes": true,
+          "horizontalOrder": true,
+          "gapsPx": [
+            4,
+            28
+          ]
+        }
+      ],
+      "grid": {
+        "cellCount": 32,
+        "channelIndices": [
+          "0"
+        ],
+        "backgroundColors": [
+          "rgb(229, 241, 251)"
+        ],
+        "byteRows": [
+          {
+            "byte": "BYTE 0",
+            "labels": [
+              "ch0"
+            ]
+          },
+          {
+            "byte": "BYTE 1",
+            "labels": [
+              "ch0"
+            ]
+          },
+          {
+            "byte": "BYTE 2",
+            "labels": [
+              "ch0"
+            ]
+          },
+          {
+            "byte": "BYTE 3",
+            "labels": [
+              "ch0"
+            ]
+          }
+        ],
+        "boundaries": {
+          "top": [
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1,
+            0
+          ],
+          "bottom": [
+            31,
+            30,
+            29,
+            28,
+            27,
+            26,
+            25,
+            24
+          ],
+          "left": [
+            7,
+            15,
+            23,
+            31
+          ],
+          "right": [
+            0,
+            8,
+            16,
+            24
+          ]
+        }
+      },
+      "table": {
+        "headers": [
+          "输出",
+          "通道名称",
+          "Word",
+          "类型",
+          "占用位置",
+          "转换说明",
+          "操作"
+        ],
+        "rows": [
+          {
+            "channel": "ch0",
+            "word": "Word 0",
+            "wordColumnIndex": 2,
+            "positionColumnIndex": 4,
+            "positionLines": [
+              "Byte 0–3",
+              "Bits 0–31"
+            ],
+            "display": [
+              "block",
+              "block"
+            ],
+            "lineTops": [
+              603,
+              618
+            ],
+            "twoLines": true
+          },
+          {
+            "channel": "ch1",
+            "word": "Word 1",
+            "wordColumnIndex": 2,
+            "positionColumnIndex": 4,
+            "positionLines": [
+              "Byte 0–3",
+              "Bits 0–31"
+            ],
+            "display": [
+              "block",
+              "block"
+            ],
+            "lineTops": [
+              643,
+              658
+            ],
+            "twoLines": true
+          },
+          {
+            "channel": "ch2",
+            "word": "Word 2",
+            "wordColumnIndex": 2,
+            "positionColumnIndex": 4,
+            "positionLines": [
+              "Byte 0–3",
+              "Bits 0–31"
+            ],
+            "display": [
+              "block",
+              "block"
+            ],
+            "lineTops": [
+              683,
+              698
+            ],
+            "twoLines": true
+          },
+          {
+            "channel": "ch3",
+            "word": "Word 3",
+            "wordColumnIndex": 2,
+            "positionColumnIndex": 4,
+            "positionLines": [
+              "Byte 0–3",
+              "Bits 0–31"
+            ],
+            "display": [
+              "block",
+              "block"
+            ],
+            "lineTops": [
+              723,
+              738
+            ],
+            "twoLines": true
+          }
+        ]
+      },
+      "selectBase": {
+        "appearance": "none",
+        "webkitAppearance": "none",
+        "backgroundImage": "none",
+        "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+        "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+        "iconSizePx": [
+          16,
+          16
+        ],
+        "iconRightGapPx": 8,
+        "iconColor": "rgb(97, 97, 97)",
+        "iconBackgroundColor": "rgb(97, 97, 97)",
+        "iconVisible": true
+      },
+      "overflow": {
+        "viewport": [
+          1306,
+          781
+        ],
+        "document": [
+          1306,
+          1306
+        ],
+        "body": [
+          1306,
+          1306
+        ],
+        "app": [
+          1306,
+          1306
+        ],
+        "workspace": [
+          1104,
+          1104
+        ],
+        "page": [
+          1072,
+          1072
+        ],
+        "horizontalOverflow": false
+      },
+      "screenshots": {
+        "default": "justfloat-channel-v2-default-1306x781.png",
+        "currentWordHover": "justfloat-channel-v2-layout-hover-1306x781.png",
+        "crossWordHover": "justfloat-channel-v2-table-hover-1306x781.png",
+        "selectFocus": "justfloat-channel-v2-select-focus-1306x781.png",
+        "selectFocusDetail": "justfloat-channel-v2-select-focus-detail-1306x781.png"
+      },
+      "selectStates": {
+        "normal": {
+          "disabled": false,
+          "focused": false,
+          "appearance": "none",
+          "webkitAppearance": "none",
+          "backgroundImage": "none",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgb(209, 209, 209)",
+          "boxShadow": "none",
+          "opacity": "1",
+          "cursor": "pointer",
+          "iconColor": "rgb(97, 97, 97)",
+          "iconBackgroundColor": "rgb(97, 97, 97)",
+          "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+          "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")"
+        },
+        "focus": {
+          "disabled": false,
+          "focused": true,
+          "appearance": "none",
+          "webkitAppearance": "none",
+          "backgroundImage": "none",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgb(15, 108, 189)",
+          "boxShadow": "rgb(15, 108, 189) 0px 0px 0px 1px",
+          "opacity": "1",
+          "cursor": "pointer",
+          "iconColor": "rgb(36, 36, 36)",
+          "iconBackgroundColor": "rgb(36, 36, 36)",
+          "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+          "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")"
+        },
+        "hover": {
+          "disabled": false,
+          "focused": false,
+          "appearance": "none",
+          "webkitAppearance": "none",
+          "backgroundImage": "none",
+          "backgroundColor": "rgb(249, 249, 249)",
+          "borderColor": "rgb(179, 179, 179)",
+          "boxShadow": "none",
+          "opacity": "1",
+          "cursor": "pointer",
+          "iconColor": "rgb(36, 36, 36)",
+          "iconBackgroundColor": "rgb(36, 36, 36)",
+          "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+          "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")"
+        },
+        "disabled": {
+          "disabled": true,
+          "focused": false,
+          "appearance": "none",
+          "webkitAppearance": "none",
+          "backgroundImage": "none",
+          "backgroundColor": "rgb(243, 243, 243)",
+          "borderColor": "rgb(224, 224, 224)",
+          "boxShadow": "none",
+          "opacity": "0.72",
+          "cursor": "not-allowed",
+          "iconColor": "rgb(160, 160, 160)",
+          "iconBackgroundColor": "rgb(160, 160, 160)",
+          "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+          "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")"
+        }
+      },
+      "defaultImageSize": {
+        "width": 1306,
+        "height": 781
+      },
+      "currentWordHover": {
+        "gridTotal": 32,
+        "gridLinked": 32,
+        "rowLinked": true,
+        "rowCellBackground": "rgb(229, 241, 251)",
+        "badgeBackground": "rgb(229, 241, 251)",
+        "badgeBorder": "rgb(15, 108, 189)"
+      },
+      "crossWordHover": {
+        "selectedWord": "Word 0",
+        "rowLinked": true,
+        "barTotal": 32,
+        "barLinked": 32,
+        "cardBorder": "rgb(15, 108, 189)",
+        "cardBackground": "rgb(235, 243, 252)",
+        "cardBoxShadow": "rgb(15, 108, 189) 0px 0px 0px 2px inset",
+        "usageColor": "rgb(15, 108, 189)",
+        "usageWeight": "600"
+      },
+      "selectFocusDetailSize": {
+        "source": {
+          "width": 141,
+          "height": 42
+        },
+        "enlarged": {
+          "width": 564,
+          "height": 168
+        }
+      },
+      "labelOverlap": 0,
+      "hasChannelLabelCells": 4,
+      "hiddenLabelCellBitNumbers": 4,
+      "overlapRegression": {
+        "labelOverlap": 0,
+        "hasChannelLabelCells": 4,
+        "hiddenLabelCellBitNumbers": 4,
+        "byteRowLabels": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "gridCells": 32,
+        "horizontalOverflow": false,
+        "selectAppearance": "none",
+        "iconVisible": true,
+        "focus": {
+          "focused": true,
+          "borderColor": "rgb(15, 108, 189)",
+          "boxShadow": "rgb(15, 108, 189) 0px 0px 0px 1px"
+        }
+      }
+    },
+    "980x680": {
+      "wordCards": [
+        {
+          "ariaLabel": "Word 0，1 个字段，已用 32/32 bits",
+          "label": "Word",
+          "index": "0",
+          "stats": "1 个字段",
+          "usage": "已用 32/32 bits",
+          "distinctNodes": true,
+          "horizontalOrder": true,
+          "gapsPx": [
+            4,
+            28
+          ]
+        },
+        {
+          "ariaLabel": "Word 1，1 个字段，已用 32/32 bits",
+          "label": "Word",
+          "index": "1",
+          "stats": "1 个字段",
+          "usage": "已用 32/32 bits",
+          "distinctNodes": true,
+          "horizontalOrder": true,
+          "gapsPx": [
+            4,
+            28
+          ]
+        },
+        {
+          "ariaLabel": "Word 2，1 个字段，已用 32/32 bits",
+          "label": "Word",
+          "index": "2",
+          "stats": "1 个字段",
+          "usage": "已用 32/32 bits",
+          "distinctNodes": true,
+          "horizontalOrder": true,
+          "gapsPx": [
+            4,
+            28
+          ]
+        },
+        {
+          "ariaLabel": "Word 3，1 个字段，已用 32/32 bits",
+          "label": "Word",
+          "index": "3",
+          "stats": "1 个字段",
+          "usage": "已用 32/32 bits",
+          "distinctNodes": true,
+          "horizontalOrder": true,
+          "gapsPx": [
+            4,
+            28
+          ]
+        }
+      ],
+      "grid": {
+        "cellCount": 32,
+        "channelIndices": [
+          "0"
+        ],
+        "backgroundColors": [
+          "rgb(229, 241, 251)"
+        ],
+        "byteRows": [
+          {
+            "byte": "BYTE 0",
+            "labels": [
+              "ch0"
+            ]
+          },
+          {
+            "byte": "BYTE 1",
+            "labels": [
+              "ch0"
+            ]
+          },
+          {
+            "byte": "BYTE 2",
+            "labels": [
+              "ch0"
+            ]
+          },
+          {
+            "byte": "BYTE 3",
+            "labels": [
+              "ch0"
+            ]
+          }
+        ],
+        "boundaries": {
+          "top": [
+            7,
+            6,
+            5,
+            4,
+            3,
+            2,
+            1,
+            0
+          ],
+          "bottom": [
+            31,
+            30,
+            29,
+            28,
+            27,
+            26,
+            25,
+            24
+          ],
+          "left": [
+            7,
+            15,
+            23,
+            31
+          ],
+          "right": [
+            0,
+            8,
+            16,
+            24
+          ]
+        }
+      },
+      "table": {
+        "headers": [
+          "输出",
+          "通道名称",
+          "Word",
+          "类型",
+          "占用位置",
+          "转换说明",
+          "操作"
+        ],
+        "rows": [
+          {
+            "channel": "ch0",
+            "word": "Word 0",
+            "wordColumnIndex": 2,
+            "positionColumnIndex": 4,
+            "positionLines": [
+              "Byte 0–3",
+              "Bits 0–31"
+            ],
+            "display": [
+              "block",
+              "block"
+            ],
+            "lineTops": [
+              608,
+              623
+            ],
+            "twoLines": true
+          },
+          {
+            "channel": "ch1",
+            "word": "Word 1",
+            "wordColumnIndex": 2,
+            "positionColumnIndex": 4,
+            "positionLines": [
+              "Byte 0–3",
+              "Bits 0–31"
+            ],
+            "display": [
+              "block",
+              "block"
+            ],
+            "lineTops": [
+              648,
+              663
+            ],
+            "twoLines": true
+          },
+          {
+            "channel": "ch2",
+            "word": "Word 2",
+            "wordColumnIndex": 2,
+            "positionColumnIndex": 4,
+            "positionLines": [
+              "Byte 0–3",
+              "Bits 0–31"
+            ],
+            "display": [
+              "block",
+              "block"
+            ],
+            "lineTops": [
+              688,
+              703
+            ],
+            "twoLines": true
+          },
+          {
+            "channel": "ch3",
+            "word": "Word 3",
+            "wordColumnIndex": 2,
+            "positionColumnIndex": 4,
+            "positionLines": [
+              "Byte 0–3",
+              "Bits 0–31"
+            ],
+            "display": [
+              "block",
+              "block"
+            ],
+            "lineTops": [
+              728,
+              743
+            ],
+            "twoLines": true
+          }
+        ]
+      },
+      "selectBase": {
+        "appearance": "none",
+        "webkitAppearance": "none",
+        "backgroundImage": "none",
+        "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+        "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+        "iconSizePx": [
+          16,
+          16
+        ],
+        "iconRightGapPx": 8,
+        "iconColor": "rgb(97, 97, 97)",
+        "iconBackgroundColor": "rgb(97, 97, 97)",
+        "iconVisible": true
+      },
+      "overflow": {
+        "viewport": [
+          980,
+          680
+        ],
+        "document": [
+          980,
+          980
+        ],
+        "body": [
+          980,
+          980
+        ],
+        "app": [
+          980,
+          980
+        ],
+        "workspace": [
+          778,
+          778
+        ],
+        "page": [
+          746,
+          746
+        ],
+        "horizontalOverflow": false
+      },
+      "screenshots": {
+        "default": "justfloat-channel-v2-default-980x680.png",
+        "currentWordHover": "justfloat-channel-v2-layout-hover-980x680.png",
+        "crossWordHover": "justfloat-channel-v2-table-hover-980x680.png",
+        "selectFocus": "justfloat-channel-v2-select-focus-980x680.png"
+      },
+      "selectStates": {
+        "normal": {
+          "disabled": false,
+          "focused": false,
+          "appearance": "none",
+          "webkitAppearance": "none",
+          "backgroundImage": "none",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgb(209, 209, 209)",
+          "boxShadow": "none",
+          "opacity": "1",
+          "cursor": "pointer",
+          "iconColor": "rgb(97, 97, 97)",
+          "iconBackgroundColor": "rgb(97, 97, 97)",
+          "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+          "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")"
+        },
+        "focus": {
+          "disabled": false,
+          "focused": true,
+          "appearance": "none",
+          "webkitAppearance": "none",
+          "backgroundImage": "none",
+          "backgroundColor": "rgb(255, 255, 255)",
+          "borderColor": "rgb(15, 108, 189)",
+          "boxShadow": "rgb(15, 108, 189) 0px 0px 0px 1px",
+          "opacity": "1",
+          "cursor": "pointer",
+          "iconColor": "rgb(36, 36, 36)",
+          "iconBackgroundColor": "rgb(36, 36, 36)",
+          "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+          "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")"
+        },
+        "hover": {
+          "disabled": false,
+          "focused": false,
+          "appearance": "none",
+          "webkitAppearance": "none",
+          "backgroundImage": "none",
+          "backgroundColor": "rgb(249, 249, 249)",
+          "borderColor": "rgb(179, 179, 179)",
+          "boxShadow": "none",
+          "opacity": "1",
+          "cursor": "pointer",
+          "iconColor": "rgb(36, 36, 36)",
+          "iconBackgroundColor": "rgb(36, 36, 36)",
+          "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+          "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")"
+        },
+        "disabled": {
+          "disabled": true,
+          "focused": false,
+          "appearance": "none",
+          "webkitAppearance": "none",
+          "backgroundImage": "none",
+          "backgroundColor": "rgb(243, 243, 243)",
+          "borderColor": "rgb(224, 224, 224)",
+          "boxShadow": "none",
+          "opacity": "0.72",
+          "cursor": "not-allowed",
+          "iconColor": "rgb(160, 160, 160)",
+          "iconBackgroundColor": "rgb(160, 160, 160)",
+          "iconMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")",
+          "iconWebkitMaskImage": "url(\"file:///D:/VOFA+/Vodka/tools/justfloat-engine-builder/assets/icons/chevron_down.svg\")"
+        }
+      },
+      "defaultImageSize": {
+        "width": 980,
+        "height": 680
+      },
+      "currentWordHover": {
+        "gridTotal": 32,
+        "gridLinked": 32,
+        "rowLinked": true,
+        "rowCellBackground": "rgb(229, 241, 251)",
+        "badgeBackground": "rgb(229, 241, 251)",
+        "badgeBorder": "rgb(15, 108, 189)"
+      },
+      "crossWordHover": {
+        "selectedWord": "Word 0",
+        "rowLinked": true,
+        "barTotal": 32,
+        "barLinked": 32,
+        "cardBorder": "rgb(15, 108, 189)",
+        "cardBackground": "rgb(235, 243, 252)",
+        "cardBoxShadow": "rgb(15, 108, 189) 0px 0px 0px 2px inset",
+        "usageColor": "rgb(15, 108, 189)",
+        "usageWeight": "600"
+      },
+      "labelOverlap": 0,
+      "hasChannelLabelCells": 4,
+      "hiddenLabelCellBitNumbers": 4,
+      "overlapRegression": {
+        "labelOverlap": 0,
+        "hasChannelLabelCells": 4,
+        "hiddenLabelCellBitNumbers": 4,
+        "byteRowLabels": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "gridCells": 32,
+        "horizontalOverflow": false,
+        "selectAppearance": "none",
+        "iconVisible": true,
+        "focus": {
+          "focused": true,
+          "borderColor": "rgb(15, 108, 189)",
+          "boxShadow": "rgb(15, 108, 189) 0px 0px 0px 1px"
+        }
+      }
+    }
+  },
+  "reverifiedAt": "2026-08-29T16:41:41.097Z"
+}

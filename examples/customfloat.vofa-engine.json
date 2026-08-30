@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "engineName": "Custom Float",
+  "descriptions": {
+    "SimplifiedChinese": {
+      "format": "Custom Float 使用 4 字节小端数据区，依次输出 uint16、uint8 和 8 个 bit 通道；数据区后跟帧尾 00 00 80 7F。",
+      "example": "unsigned char frame[8] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame));",
+      "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
+    },
+    "TraditionalChinese": {
+      "format": "Custom Float 使用 4 位元組小端資料區，依序輸出 uint16、uint8 和 8 個 bit 通道；資料區後跟幀尾 00 00 80 7F。",
+      "example": "unsigned char frame[8] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame));",
+      "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
+    },
+    "English": {
+      "format": "Custom Float uses one four-byte little-endian data word and emits uint16, uint8, and eight bit channels; append 00 00 80 7F as the frame tail.",
+      "example": "unsigned char frame[8] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame));",
+      "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
+    }
+  },
+  "wordCount": 1,
+  "fields": [
+    { "wordIndex": 0, "type": "uint16", "bitOffset": 0, "name": "counter16" },
+    { "wordIndex": 0, "type": "uint8", "bitOffset": 16, "name": "status8" },
+    { "wordIndex": 0, "type": "bit", "bitOffset": 24, "name": "flag0" },
+    { "wordIndex": 0, "type": "bit", "bitOffset": 25, "name": "flag1" },
+    { "wordIndex": 0, "type": "bit", "bitOffset": 26, "name": "flag2" },
+    { "wordIndex": 0, "type": "bit", "bitOffset": 27, "name": "flag3" },
+    { "wordIndex": 0, "type": "bit", "bitOffset": 28, "name": "flag4" },
+    { "wordIndex": 0, "type": "bit", "bitOffset": 29, "name": "flag5" },
+    { "wordIndex": 0, "type": "bit", "bitOffset": 30, "name": "flag6" },
+    { "wordIndex": 0, "type": "bit", "bitOffset": 31, "name": "flag7" }
+  ]
+}

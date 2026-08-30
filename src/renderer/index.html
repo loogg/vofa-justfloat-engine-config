@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JustFloat 自定义数据引擎生成器</title>
+    <link rel="icon" href="../../assets/app-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-bar">
+        <div class="app-identity">
+          <img src="../../assets/app-icon.png" alt="" width="24" height="24" />
+          <div><strong>JustFloat 引擎生成器</strong><span>VOFA+ 自定义数据引擎工具</span></div>
+        </div>
+        <div class="app-actions">
+          <span class="unsaved-indicator" id="unsaved-indicator" hidden>未保存</span>
+          <button class="button button-subtle" id="load-config" type="button"><span class="icon icon-document" aria-hidden="true"></span>载入配置</button>
+          <button class="button button-subtle" id="save-config" type="button"><span class="icon icon-save" aria-hidden="true"></span>保存配置</button>
+        </div>
+      </header>
+
+      <div class="app-body">
+        <aside class="sidebar" aria-label="配置页面">
+          <div class="sidebar-heading">配置</div>
+          <nav class="side-nav">
+            <button class="nav-item is-active" id="nav-project" type="button" data-page-target="project" aria-current="page">
+              <span class="icon icon-document" aria-hidden="true"></span><span>工程设置</span>
+            </button>
+            <button class="nav-item" id="nav-layout" type="button" data-page-target="layout">
+              <span class="icon icon-code" aria-hidden="true"></span><span>通道布局</span>
+            </button>
+            <button class="nav-item" id="nav-build" type="button" data-page-target="build">
+              <span class="icon icon-build" aria-hidden="true"></span><span>构建输出</span>
+            </button>
+          </nav>
+
+          <button class="sidebar-environment" id="open-environment" type="button">
+            <span class="status-icon" id="environment-status-icon" aria-hidden="true"><span class="icon icon-settings"></span></span>
+            <span><strong>构建环境</strong><small id="environment-summary">正在自动扫描…</small></span>
+          </button>
+        </aside>
+
+        <main class="workspace" id="workspace">
+          <div class="page-view is-active" id="page-project" data-page="project">
+            <header class="page-heading">
+              <div><h1>工程设置</h1><p>选择仓库，设置引擎名称和插件描述。</p></div>
+            </header>
+
+            <section class="tool-section repository-section" aria-labelledby="repository-title">
+              <div class="section-heading">
+                <div><h2 id="repository-title">仓库位置</h2><p>工具可独立发布；请选择包含 dataengines 的 Vodka 仓库。</p></div>
+              </div>
+              <div class="repository-fields">
+                <div class="path-control repo-control">
+                  <span class="path-label">仓库根目录</span>
+                  <input id="repo-root-preview" type="text" readonly aria-readonly="true" placeholder="请选择 Vodka 仓库根目录" />
+                  <button class="icon-button" id="browse-repo" type="button" aria-label="选择仓库根目录" title="选择仓库根目录"><span class="icon icon-folder-open" aria-hidden="true"></span></button>
+                </div>
+                <div class="path-control dataengines-control">
+                  <span class="path-label">Data Engines</span>
+                  <input id="dataengines-preview" type="text" readonly aria-readonly="true" placeholder="由仓库根目录自动推导" />
+                </div>
+              </div>
+            </section>
+
+            <section class="tool-section" id="engine-section">
+              <div class="section-heading">
+                <div><h2>基础设置</h2><p>只需输入一个名称，其余标识符和文件名自动生成。</p></div>
+                <div class="section-metrics" aria-label="配置统计">
+                  <span><strong id="stat-words">4</strong> 个数据单元</span>
+                  <span><strong id="stat-fields">4</strong> 个通道</span>
+                  <span><strong id="stat-used">100%</strong> 位利用率</span>
+                </div>
+              </div>
+              <div class="basic-grid">
+                <label class="field-control engine-name-control">
+                  <span class="field-label">引擎名称</span>
+                  <input id="engine-name" type="text" maxlength="64" value="Packed Float" autocomplete="off" spellcheck="false" />
+                  <span class="field-hint">使用英文字母和数字，例如 Packed Float。</span>
+                </label>
+                <label class="field-control word-count-control">
+                  <span class="field-label">4 字节数据单元数</span>
+                  <div class="number-stepper">
+                    <button id="word-count-minus" type="button" aria-label="减少数据单元"><span class="icon icon-subtract"></span></button>
+                    <input id="word-count" type="number" min="1" max="256" value="4" inputmode="numeric" />
+                    <button id="word-count-plus" type="button" aria-label="增加数据单元"><span class="icon icon-add"></span></button>
+                  </div>
+                  <span class="field-hint">数据区 <strong id="frame-byte-count">16 Bytes</strong>，另含 4 Bytes 帧尾。</span>
+                </label>
+                <div class="derived-block" aria-label="自动派生标识符">
+                  <span class="derived-label">自动派生</span>
+                  <dl>
+                    <div><dt>Target</dt><dd id="derived-target">packedfloat</dd></div>
+                    <div><dt>C++ 类</dt><dd id="derived-class">PackedFloat</dd></div>
+                    <div><dt>DLL</dt><dd id="derived-dll">packedfloat.dll</dd></div>
+                    <div><dt>描述文件</dt><dd id="derived-json">packedfloat.json</dd></div>
+                  </dl>
+                </div>
+              </div>
+              <div class="inline-message is-error" id="engine-error" role="alert" hidden></div>
+            </section>
+
+            <section class="tool-section" id="description-section">
+              <div class="section-heading">
+                <div><h2>JSON 描述</h2><p>内容将原样写入生成的三语描述文件。</p></div>
+                <div class="language-tabs" id="description-tabs" role="tablist" aria-label="描述语言">
+                  <button class="is-active" type="button" role="tab" aria-selected="true" data-language="SimplifiedChinese">简体中文</button>
+                  <button type="button" role="tab" aria-selected="false" data-language="TraditionalChinese">繁體中文</button>
+                  <button type="button" role="tab" aria-selected="false" data-language="English">English</button>
+                </div>
+              </div>
+              <div class="description-editor" role="tabpanel" aria-labelledby="description-language-name">
+                <div class="description-language" id="description-language-name">简体中文</div>
+                <label class="field-control description-format"><span class="field-label">format</span><textarea id="description-format" rows="4" spellcheck="false"></textarea></label>
+                <label class="field-control description-example"><span class="field-label">example</span><textarea id="description-example" rows="4" spellcheck="false"></textarea></label>
+                <label class="field-control description-url"><span class="field-label">url</span><input id="description-url" type="url" spellcheck="false" placeholder="https://..." /></label>
+              </div>
+            </section>
+          </div>
+
+          <div class="page-view" id="page-layout" data-page="layout" hidden>
+            <header class="page-heading">
+              <div><h1>通道布局</h1><p>在保持 4 字节对齐的前提下拆分数据字段，并检查输出通道。</p></div>
+              <div class="section-metrics" aria-label="布局统计">
+                <span><strong id="layout-stat-words">4</strong> 个 Word</span>
+                <span><strong id="layout-stat-fields">4</strong> 个通道</span>
+              </div>
+            </header>
+
+            <section class="tool-section" id="layout-section">
+              <div class="section-heading">
+                <div><h2>4 字节布局</h2><p>每个 Word 固定 32 bits；字段按小端字节序放置，空白位保留为占位。</p></div>
+                <div class="section-actions">
+                  <button class="button button-subtle" id="fill-floats" type="button">恢复全 Float</button>
+                  <button class="button button-subtle button-danger-text" id="clear-word" type="button">清空当前 Word</button>
+                </div>
+              </div>
+              <div class="word-browser">
+                <span class="field-label">数据单元 <b id="word-list-count">4</b></span>
+                <div class="word-list" id="word-list" role="listbox" aria-label="选择 4 字节数据单元"></div>
+              </div>
+              <div class="layout-workbench">
+                <div class="bit-canvas">
+                  <div class="canvas-heading">
+                    <div><strong id="selected-word-label">WORD 0</strong><span>Byte 0 为最低有效字节</span></div>
+                    <div class="legend" aria-label="通道颜色说明">
+                      <span class="legend-channel"><i></i>颜色区分输出 ch</span><span class="legend-empty"><i></i>空白位</span><span class="legend-hint">悬停会联动下方表格</span>
+                    </div>
+                  </div>
+                  <div class="bit-ruler" aria-hidden="true"><span></span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div>
+                  <div class="bit-grid" id="bit-grid" aria-label="4 乘 8 位布局预览"></div>
+                  <div class="precision-note" id="precision-note"><span class="icon icon-info" aria-hidden="true"></span><span>所有通道最终写入 <code>QVector&lt;float&gt;</code>；uint32 超过 16,777,216 时可能损失整数精度。</span></div>
+                </div>
+                <form class="field-editor" id="field-editor" novalidate>
+                  <div class="editor-heading">
+                    <div><strong id="editor-mode">添加字段</strong><span id="editor-word">WORD 0</span></div>
+                    <button class="icon-button" id="reset-editor" type="button" aria-label="退出编辑" title="退出编辑"><span class="icon icon-dismiss"></span></button>
+                  </div>
+                  <label class="field-control"><span class="field-label">通道名称</span><input id="field-name" type="text" maxlength="48" spellcheck="false" autocomplete="off" placeholder="例如 status" /></label>
+                  <div class="editor-row">
+                    <label class="field-control"><span class="field-label">字段类型</span><span class="select-shell"><select id="field-type"><option value="bit">bit · 1 bit</option><option value="uint8">uint8 · 1 Byte</option><option value="uint16">uint16 · 2 Bytes</option><option value="uint32">uint32 · 4 Bytes</option><option value="float">float · 4 Bytes</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
+                    <label class="field-control"><span class="field-label">单元内位置</span><span class="select-shell"><select id="field-offset"></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
+                  </div>
+                  <div class="allocation-row"><span id="offset-hint">Bit 位置 0–31</span><strong id="allocation-range">Bit 0</strong><span id="allocation-size">1 bit</span></div>
+                  <div class="inline-message is-error" id="field-error" role="alert" hidden></div>
+                  <div class="editor-actions">
+                    <button class="button button-primary" id="commit-field" type="submit"><span class="icon icon-add"></span>添加字段</button>
+                    <button class="button button-subtle button-danger-text" id="delete-field" type="button" hidden><span class="icon icon-delete"></span>删除</button>
+                  </div>
+                </form>
+              </div>
+            </section>
+
+            <section class="tool-section" id="channels-section">
+              <div class="section-heading">
+                <div><h2>输出通道</h2><p>引擎按 Word 和 Bit 起点升序输出，表格顺序即 VOFA+ 通道顺序。</p></div>
+                <div class="table-tools">
+                  <label for="channel-sort">查看排序</label>
+                  <span class="select-shell select-shell-compact"><select id="channel-sort"><option value="physical">物理位置</option><option value="name">通道名称</option><option value="type">数据类型</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span>
+                  <span class="channel-count"><strong id="channel-count">4</strong> Channels</span>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="channel-table">
+                  <thead><tr><th>输出</th><th>通道名称</th><th>Word</th><th>类型</th><th>占用位置</th><th>转换说明</th><th><span class="sr-only">操作</span></th></tr></thead>
+                  <tbody id="channel-table-body"></tbody>
+                </table>
+                <div class="empty-table" id="empty-table" hidden><strong>还没有输出通道</strong><span>选择一个 Word 并添加字段。</span></div>
+              </div>
+            </section>
+          </div>
+
+          <div class="page-view" id="page-build" data-page="build" hidden>
+            <header class="page-heading">
+              <div><h1>构建输出</h1><p>检查 Release 环境，生成源码并查看构建结果。</p></div>
+            </header>
+
+            <section class="tool-section build-environment-section">
+              <div class="section-heading"><div><h2>Release 构建环境</h2><p>目标 Kit 固定为 Desktop_Qt_5_14_2_MSVC2017_64bit-Release。</p></div></div>
+              <div class="build-environment-row">
+                <span class="status-icon" id="build-environment-status-icon"><span class="icon icon-settings"></span></span>
+                <span><strong id="build-environment-title">正在自动扫描</strong><small id="build-environment-detail">正在检查 Qt、构建工具和 MSVC。</small></span>
+                <button class="button button-subtle" id="open-environment-build" type="button"><span class="icon icon-settings"></span>查看与配置</button>
+              </div>
+            </section>
+
+            <section class="tool-section output-section">
+              <div class="section-heading"><div><h2>输出位置</h2><p>源码与 justfloat 同级，DLL 和描述文件输出到 generated。</p></div></div>
+              <div class="output-list">
+                <div><span class="icon icon-code" aria-hidden="true"></span><strong>引擎源码</strong><code id="source-path">dataengines/packedfloat</code></div>
+                <div><span class="icon icon-build" aria-hidden="true"></span><strong>构建产物</strong><code id="generated-path">dataengines/generated</code></div>
+              </div>
+              <div class="output-actions">
+                <span class="kit-badge" id="kit-badge">Desktop_Qt_5_14_2_MSVC2017_64bit-Release</span>
+                <button class="button button-subtle" id="open-generated-inline" type="button"><span class="icon icon-folder-open"></span>打开产物目录</button>
+              </div>
+            </section>
+
+            <section class="tool-section build-section" id="build-section">
+              <div class="section-heading"><div><h2>构建日志</h2><p>生成和编译过程会实时显示在这里。</p></div></div>
+              <div class="log-panel">
+                <div class="log-toolbar"><span><strong>Release 输出</strong><small id="log-state">等待操作</small></span><button class="button button-plain" id="clear-log" type="button">清空</button></div>
+                <div class="log-output" id="log-output" aria-live="polite" aria-label="生成和构建日志"><div class="log-line is-info"><time>--:--:--</time><span>配置完成后，可仅生成源码或执行 Release 构建。</span></div></div>
+              </div>
+            </section>
+          </div>
+        </main>
+      </div>
+
+      <footer class="action-bar">
+        <div class="build-status">
+          <span class="dock-icon is-ready" id="dock-icon"><span class="icon icon-check"></span></span>
+          <span><strong id="dock-title">配置检查通过</strong><small id="dock-detail">4 个通道 · 20 Bytes/帧（含帧尾）</small></span>
+        </div>
+        <div class="footer-actions">
+          <button class="button button-subtle" id="open-generated" type="button"><span class="icon icon-folder-open"></span>打开产物目录</button>
+          <button class="button button-subtle" id="generate-only" type="button"><span class="icon icon-document"></span>仅生成源码</button>
+          <button class="button button-primary build-button" id="generate-build" type="button"><span class="button-content"><span class="icon icon-build"></span>生成并构建 Release</span><span class="button-spinner" aria-hidden="true"></span></button>
+        </div>
+      </footer>
+    </div>
+
+    <dialog class="environment-dialog" id="environment-dialog">
+      <form method="dialog" class="dialog-card" id="environment-form">
+        <div class="dialog-header">
+          <div><h2>Qt Release 构建环境</h2><p>打开窗口时自动扫描；也可指定本机工具路径。</p></div>
+          <button class="icon-button" value="cancel" aria-label="关闭" type="submit"><span class="icon icon-dismiss"></span></button>
+        </div>
+        <div class="dialog-body">
+          <div class="environment-overview" id="environment-overview"><span class="status-icon"><span class="icon icon-settings"></span></span><div><strong id="environment-state-heading">正在扫描构建环境</strong><p id="environment-state-detail">正在查找仓库、Qt 5.14.2、构建工具和 MSVC。</p></div></div>
+          <div class="environment-fields">
+            <label class="field-control path-field"><span class="field-label">仓库根目录</span><div><input id="env-repo-root" type="text" spellcheck="false" placeholder="Vodka 仓库根目录" /><button type="button" data-select-path="repoRoot"><span class="icon icon-folder-open"></span>浏览</button></div></label>
+            <label class="field-control path-field path-field-readonly"><span class="field-label">Data Engines 目录（自动派生）</span><div><input id="env-data-engines" type="text" spellcheck="false" readonly aria-readonly="true" /><span>只读</span></div></label>
+            <label class="field-control path-field"><span class="field-label">qmake.exe</span><div><input id="env-qmake" type="text" spellcheck="false" /><button type="button" data-select-path="qmakePath"><span class="icon icon-folder-open"></span>浏览</button></div></label>
+            <label class="field-control path-field"><span class="field-label">jom.exe / nmake.exe</span><div><input id="env-jom" type="text" spellcheck="false" /><button type="button" data-select-path="jomPath"><span class="icon icon-folder-open"></span>浏览</button></div></label>
+            <label class="field-control path-field"><span class="field-label">Visual Studio vcvarsall.bat</span><div><input id="env-vcvars" type="text" spellcheck="false" /><button type="button" data-select-path="vcVarsPath"><span class="icon icon-folder-open"></span>浏览</button></div></label>
+            <label class="field-control path-field path-field-readonly"><span class="field-label">构建 Kit（固定 Release）</span><div><input id="env-kit-name" type="text" spellcheck="false" readonly aria-readonly="true" /><span>只读</span></div></label>
+          </div>
+          <div class="scan-results">
+            <div class="scan-heading"><strong>自动扫描结果</strong><span>构建前会再次校验</span></div>
+            <ul id="environment-check-list"></ul>
+            <div class="environment-messages" id="environment-messages" hidden></div>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button class="button button-subtle" id="refresh-environment" type="button"><span class="icon icon-refresh"></span>重新扫描</button>
+          <div><button class="button button-subtle" value="cancel" type="submit">取消</button><button class="button button-primary" id="save-environment" value="default" type="submit">保存本机设置</button></div>
+        </div>
+      </form>
+    </dialog>
+
+    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,49 @@
+{
+  "name": "justfloat-engine-builder",
+  "version": "1.0.0",
+  "private": true,
+  "author": "VOFA+",
+  "description": "Visual generator and Release builder for configurable VOFA+ JustFloat-compatible data engines.",
+  "main": "src/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "pack:win": "electron-builder --win portable --x64",
+    "dist": "npm run pack:win"
+  },
+  "devDependencies": {
+    "@fluentui/svg-icons": "1.1.338",
+    "electron": "44.0.0",
+    "electron-builder": "26.15.3"
+  },
+  "license": "MIT",
+  "build": {
+    "appId": "plus.vofa.justfloat-engine-builder",
+    "productName": "VOFA+ JustFloat Engine Builder",
+    "asar": true,
+    "compression": "normal",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/app-icon.png",
+      "assets/app-icon.ico",
+      "assets/icons/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/app-icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "VOFA-JustFloat-Engine-Builder-${version}-${arch}.${ext}"
+    }
+  }
+}
