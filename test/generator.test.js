@@ -15,7 +15,7 @@ const {
   validateConfig,
 } = require('../src/generator');
 
-const repoRoot = path.resolve(__dirname, '..', '..', '..');
+const fixtureRepositoryRoot = path.join(__dirname, 'fixtures', 'vofa-repository');
 const sampleConfig = JSON.parse(fs.readFileSync(
   path.join(__dirname, '..', 'examples', 'customfloat.vofa-engine.json'),
   'utf8',
@@ -38,7 +38,7 @@ function createFixtureRepository(t) {
   assert.match(path.basename(resolvedTempRoot), /^vofa-engine-builder-test-/);
   t.after(() => fs.rmSync(resolvedTempRoot, { recursive: true, force: true }));
 
-  const sourceDataEngines = path.join(repoRoot, 'dataengines');
+  const sourceDataEngines = path.join(fixtureRepositoryRoot, 'dataengines');
   const fixtureDataEngines = path.join(resolvedTempRoot, 'dataengines');
   fs.mkdirSync(path.join(fixtureDataEngines, 'generated', 'win64'), { recursive: true });
   fs.cpSync(
