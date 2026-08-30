@@ -129,7 +129,7 @@ function migrateV1EngineName(config) {
 }
 
 function defaultDescriptions(config) {
-  const payloadBytes = Number.isInteger(config.wordCount)
+  const minimumPayloadBytes = Number.isInteger(config.wordCount)
     ? config.wordCount * WORD_SIZE
     : 0;
   const layout = Array.isArray(config.fields) ? descriptionLayout(config) : '';
@@ -139,17 +139,17 @@ function defaultDescriptions(config) {
   const url = 'https://www.vofa.plus/docs/learning/dataengines/introduce';
   return {
     SimplifiedChinese: {
-      format: `${config.displayName} 使用固定长度小端帧：${config.wordCount} 个 4 字节数据字（${payloadBytes} 字节），随后是帧尾 00 00 80 7F。\n通道按 word/bit 位置排序输出，bit 和无符号整数转换为 float 通道值。${layout ? `\n${layout}` : ''}`,
+      format: `${config.displayName} 接受变长小端帧：至少 ${config.wordCount} 个 4 字节数据字（${minimumPayloadBytes} 字节），随后是帧尾 00 00 80 7F。前 ${config.wordCount} 个 Word 按配置解析；未配置及后续 Word 沿用 JustFloat，分别输出一个 float 通道。${layout ? `\n${layout}` : ''}`,
       example,
       url,
     },
     TraditionalChinese: {
-      format: `${config.displayName} 使用固定長度小端幀：${config.wordCount} 個 4 位元組資料字（${payloadBytes} 位元組），隨後是幀尾 00 00 80 7F。\n通道按 word/bit 位置排序輸出，bit 和無符號整數轉換為 float 通道值。${layout ? `\n${layout}` : ''}`,
+      format: `${config.displayName} 接受可變長度小端幀：至少 ${config.wordCount} 個 4 位元組資料字（${minimumPayloadBytes} 位元組），隨後是幀尾 00 00 80 7F。前 ${config.wordCount} 個 Word 按配置解析；未配置及後續 Word 沿用 JustFloat，分別輸出一個 float 通道。${layout ? `\n${layout}` : ''}`,
       example,
       url,
     },
     English: {
-      format: `${config.displayName} uses a fixed-length little-endian frame: ${config.wordCount} four-byte words (${payloadBytes} bytes), followed by 00 00 80 7F.\nChannels are emitted in word/bit order; bits and unsigned integers are converted to float channel values.${layout ? `\n${layout}` : ''}`,
+      format: `${config.displayName} accepts variable-length little-endian frames with at least ${config.wordCount} four-byte Words (${minimumPayloadBytes} bytes), followed by 00 00 80 7F. The first ${config.wordCount} Words use the configured layout; unconfigured and later Words retain JustFloat behavior and each emit one float channel.${layout ? `\n${layout}` : ''}`,
       example,
       url,
     },
@@ -701,51 +701,71 @@ function sortedFields(config) {
     ));
 }
 
-function littleEndianWordExpression(wordIndex) {
-  const byteIndex = wordIndex * WORD_SIZE;
+function currentWordExpression() {
   return [
-    `static_cast<quint32>(bytes[${byteIndex}])`,
-    `(static_cast<quint32>(bytes[${byteIndex + 1}]) << 8)`,
-    `(static_cast<quint32>(bytes[${byteIndex + 2}]) << 16)`,
-    `(static_cast<quint32>(bytes[${byteIndex + 3}]) << 24)`,
+    'static_cast<quint32>(bytes[offset])',
+    '(static_cast<quint32>(bytes[offset + 1]) << 8)',
+    '(static_cast<quint32>(bytes[offset + 2]) << 16)',
+    '(static_cast<quint32>(bytes[offset + 3]) << 24)',
   ].join('\n            | ');
 }
 
 function parserLines(config) {
   const fields = sortedFields(config);
-  const emittedWords = new Set();
-  const lines = [];
-
-  fields.forEach((field, channelIndex) => {
-    if (!emittedWords.has(field.wordIndex)) {
-      emittedWords.add(field.wordIndex);
-      lines.push(`    const quint32 word${field.wordIndex} = ${littleEndianWordExpression(field.wordIndex)};`);
-    }
-
-    const word = `word${field.wordIndex}`;
-    switch (field.type) {
-      case 'bit':
-        lines.push(`    dd.append(static_cast<float>((${word} >> ${field.bitOffset}) & 0x1u));`);
-        break;
-      case 'uint8':
-        lines.push(`    dd.append(static_cast<float>((${word} >> ${field.bitOffset}) & 0xffu));`);
-        break;
-      case 'uint16':
-        lines.push(`    dd.append(static_cast<float>((${word} >> ${field.bitOffset}) & 0xffffu));`);
-        break;
-      case 'uint32':
-        lines.push(`    dd.append(static_cast<float>(${word}));`);
-        break;
-      case 'float':
-        lines.push(`    float value${channelIndex} = 0.0f;`);
-        lines.push(`    static_assert(sizeof(value${channelIndex}) == sizeof(${word}), "float must be 32 bits");`);
-        lines.push(`    std::memcpy(&value${channelIndex}, &${word}, sizeof(value${channelIndex}));`);
-        lines.push(`    dd.append(value${channelIndex});`);
-        break;
-      default:
-        throw createError('INVALID_CONFIG', `Unsupported field type: ${field.type}`);
-    }
+  const fieldsByWord = new Map();
+  fields.forEach((field) => {
+    const wordFields = fieldsByWord.get(field.wordIndex) || [];
+    wordFields.push(field);
+    fieldsByWord.set(field.wordIndex, wordFields);
   });
+  const lines = [];
+  let channelIndex = 0;
+
+  for (let wordIndex = 0; wordIndex < config.wordCount; wordIndex += 1) {
+    const wordFields = fieldsByWord.get(wordIndex) || [];
+    if (wordFields.length === 0) {
+      channelIndex += 1;
+      continue;
+    }
+
+    lines.push(`        case ${wordIndex}: {`);
+    lines.push(`            const quint32 word = ${currentWordExpression()};`);
+    wordFields.forEach((field) => {
+      switch (field.type) {
+        case 'bit':
+          lines.push(`            dd.append(static_cast<float>((word >> ${field.bitOffset}) & 0x1u));`);
+          break;
+        case 'uint8':
+          lines.push(`            dd.append(static_cast<float>((word >> ${field.bitOffset}) & 0xffu));`);
+          break;
+        case 'uint16':
+          lines.push(`            dd.append(static_cast<float>((word >> ${field.bitOffset}) & 0xffffu));`);
+          break;
+        case 'uint32':
+          lines.push('            dd.append(static_cast<float>(word));');
+          break;
+        case 'float':
+          lines.push(`            float value${channelIndex} = 0.0f;`);
+          lines.push(`            static_assert(sizeof(value${channelIndex}) == sizeof(word), "float must be 32 bits");`);
+          lines.push(`            std::memcpy(&value${channelIndex}, &word, sizeof(value${channelIndex}));`);
+          lines.push(`            dd.append(value${channelIndex});`);
+          break;
+        default:
+          throw createError('INVALID_CONFIG', `Unsupported field type: ${field.type}`);
+      }
+      channelIndex += 1;
+    });
+    lines.push('            break;');
+    lines.push('        }');
+  }
+
+  lines.push('        default: {');
+  lines.push('            float value = 0.0f;');
+  lines.push('            static_assert(sizeof(value) == 4, "float must be 32 bits");');
+  lines.push('            std::memcpy(&value, data + offset, sizeof(value));');
+  lines.push('            dd.append(value);');
+  lines.push('            break;');
+  lines.push('        }');
 
   return lines.join('\n');
 }
@@ -753,11 +773,17 @@ function parserLines(config) {
 function processingFrameFunction(config) {
   return `bool ${config.className}::ProcessingFrame(char *data, int count, QVector<float> &dd)\n`
     + `{\n`
-    + `    const int expectedCount = (${config.wordCount} * 4) + 4;\n`
-    + `    if (data == nullptr || count != expectedCount)\n`
+    + `    const int minimumCount = (${config.wordCount} * 4) + 4;\n`
+    + `    if (data == nullptr || count < minimumCount || count % 4 != 0)\n`
     + `        return false;\n\n`
     + `    const unsigned char *bytes = reinterpret_cast<const unsigned char *>(data);\n`
+    + `    const int payloadBytes = count - 4;\n`
+    + `    for (int offset = 0; offset < payloadBytes; offset += 4) {\n`
+    + `        const int wordIndex = offset / 4;\n`
+    + `        switch (wordIndex) {\n`
     + `${parserLines(config)}\n`
+    + `        }\n`
+    + `    }\n`
     + `    return true;\n`
     + `}`;
 }
@@ -815,25 +841,39 @@ function rewriteProject(template, config) {
 }
 
 function descriptionLayout(config) {
-  return sortedFields(config).map((field, channelIndex) => {
-    const width = FIELD_WIDTHS[field.type];
-    const bits = width === 1
-      ? `bit ${field.bitOffset}`
-      : `bits ${field.bitOffset}-${field.bitOffset + width - 1}`;
-    const name = field.name || `channel_${channelIndex}`;
-    return `- ch${channelIndex} ${name}: word[${field.wordIndex}] ${bits}, ${field.type}`;
-  }).join('\n');
+  const fields = sortedFields(config);
+  const lines = [];
+  let channelIndex = 0;
+  for (let wordIndex = 0; wordIndex < config.wordCount; wordIndex += 1) {
+    const wordFields = fields.filter((field) => field.wordIndex === wordIndex);
+    if (wordFields.length === 0) {
+      lines.push(`- ch${channelIndex} word${wordIndex}_float: word[${wordIndex}] bits 0-31, float (JustFloat fallback)`);
+      channelIndex += 1;
+      continue;
+    }
+    wordFields.forEach((field) => {
+      const width = FIELD_WIDTHS[field.type];
+      const bits = width === 1
+        ? `bit ${field.bitOffset}`
+        : `bits ${field.bitOffset}-${field.bitOffset + width - 1}`;
+      const name = field.name || `channel_${channelIndex}`;
+      lines.push(`- ch${channelIndex} ${name}: word[${field.wordIndex}] ${bits}, ${field.type}`);
+      channelIndex += 1;
+    });
+  }
+  lines.push(`- ch${channelIndex}+ later_word_float: word[${config.wordCount}+] bits 0-31, float (dynamic JustFloat fallback)`);
+  return lines.join('\n');
 }
 
 function descriptorExample(config) {
-  const payloadBytes = config.wordCount * WORD_SIZE;
+  const minimumPayloadBytes = config.wordCount * WORD_SIZE;
   return [
-    `unsigned char frame[${payloadBytes + FRAME_TAIL_SIZE}] = {0};`,
-    `/* Fill bytes 0..${payloadBytes - 1} using the configured little-endian layout. */`,
-    `frame[${payloadBytes}] = 0x00;`,
-    `frame[${payloadBytes + 1}] = 0x00;`,
-    `frame[${payloadBytes + 2}] = 0x80;`,
-    `frame[${payloadBytes + 3}] = 0x7f;`,
+    `unsigned char frame[${minimumPayloadBytes + FRAME_TAIL_SIZE}] = {0};`,
+    `/* Minimum frame: fill bytes 0..${minimumPayloadBytes - 1}; extra float Words may be inserted before the tail. */`,
+    `frame[${minimumPayloadBytes}] = 0x00;`,
+    `frame[${minimumPayloadBytes + 1}] = 0x00;`,
+    `frame[${minimumPayloadBytes + 2}] = 0x80;`,
+    `frame[${minimumPayloadBytes + 3}] = 0x7f;`,
     'write((char *)frame, sizeof(frame));',
   ].join('\n');
 }

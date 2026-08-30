@@ -1634,6 +1634,18 @@ select option {
   background: var(--surface-hover);
 }
 
+.word-tree-toggle.is-static {
+  cursor: default;
+}
+
+.word-tree-toggle.is-static:hover {
+  background: transparent;
+}
+
+.word-tree-row.is-dynamic-word td {
+  background: var(--accent-soft);
+}
+
 .word-tree-toggle:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
@@ -1685,6 +1697,23 @@ select option {
 .channel-table tbody .channel-tree-row.is-linked-hover td:last-child,
 .channel-table tbody .channel-tree-row.is-selected-field td:last-child {
   box-shadow: none;
+}
+
+.channel-tree-row.is-fallback-output td,
+.channel-tree-row.is-dynamic-output td {
+  color: var(--text-secondary);
+}
+
+.output-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+  font-size: 11px;
 }
 
 .tree-channel-cell {
@@ -2085,6 +2114,7 @@ select option {
 .icon-code { -webkit-mask-image: url("../../assets/icons/code.svg"); mask-image: url("../../assets/icons/code.svg"); }
 .icon-chevron-down { -webkit-mask-image: url("../../assets/icons/chevron_down.svg"); mask-image: url("../../assets/icons/chevron_down.svg"); }
 .icon-chevron-right { -webkit-mask-image: url("../../assets/icons/chevron_right.svg"); mask-image: url("../../assets/icons/chevron_right.svg"); }
+.icon-arrow-down { -webkit-mask-image: url("../../assets/icons/arrow_down.svg"); mask-image: url("../../assets/icons/arrow_down.svg"); }
 .icon-translate { -webkit-mask-image: url("../../assets/icons/translate.svg"); mask-image: url("../../assets/icons/translate.svg"); }
 
 .environment-dialog {

@@ -136,17 +136,17 @@
     const url = "https://www.vofa.plus/docs/learning/dataengines/introduce";
     return {
       SimplifiedChinese: {
-        format: "固定长度小端数据帧。每个数据单元占 4 字节，字段按配置的位置解析；帧末尾为 00 00 80 7F。",
+        format: "变长小端数据帧。前面的配置 Word 按字段位置解析，未配置及后续 Word 沿用 JustFloat float；帧末尾为 00 00 80 7F。",
         example: "按配置写入各字段后，追加帧尾：\nuint8_t tail[4] = {0x00, 0x00, 0x80, 0x7F};\nwrite((char *)tail, 4);",
         url
       },
       TraditionalChinese: {
-        format: "固定長度小端資料幀。每個資料單元佔 4 位元組，欄位按配置的位置解析；幀末尾為 00 00 80 7F。",
+        format: "可變長度小端資料幀。前面的配置 Word 按欄位位置解析，未配置及後續 Word 沿用 JustFloat float；幀末尾為 00 00 80 7F。",
         example: "按配置寫入各欄位後，追加幀尾：\nuint8_t tail[4] = {0x00, 0x00, 0x80, 0x7F};\nwrite((char *)tail, 4);",
         url
       },
       English: {
-        format: "Fixed-length little-endian frames. Each data word occupies 4 bytes; fields are decoded at their configured positions. Append 00 00 80 7F as the frame tail.",
+        format: "Variable-length little-endian frames. Configured Words use their field layout; unconfigured and later Words retain JustFloat float output. Append 00 00 80 7F as the frame tail.",
         example: "Write the configured fields, then append the frame tail:\nuint8_t tail[4] = {0x00, 0x00, 0x80, 0x7F};\nwrite((char *)tail, 4);",
         url
       }
@@ -176,38 +176,52 @@
     const fields = [...config.fields].sort((left, right) =>
       left.wordIndex - right.wordIndex || left.bitOffset - right.bitOffset || left.name.localeCompare(right.name)
     );
-    const payloadBytes = config.wordCount * 4;
+    const minimumPayloadBytes = config.wordCount * 4;
     const url = config.descriptions?.SimplifiedChinese?.url
       || "https://www.vofa.plus/docs/learning/dataengines/introduce";
     const lines = {
-      SimplifiedChinese: fields.map((field, index) =>
-        `- ch${index} ${field.name}：Word ${field.wordIndex}，${formatByteRange(field.bitOffset, typeWidth(field.type))}，${formatRange(field.bitOffset, typeWidth(field.type))}，${field.type}`
-      ),
-      TraditionalChinese: fields.map((field, index) =>
-        `- ch${index} ${field.name}：Word ${field.wordIndex}，${formatByteRange(field.bitOffset, typeWidth(field.type))}，${formatRange(field.bitOffset, typeWidth(field.type))}，${field.type}`
-      ),
-      English: fields.map((field, index) =>
-        `- ch${index} ${field.name}: Word ${field.wordIndex}, ${formatByteRange(field.bitOffset, typeWidth(field.type))}, ${formatRange(field.bitOffset, typeWidth(field.type))}, ${field.type}`
-      )
+      SimplifiedChinese: [],
+      TraditionalChinese: [],
+      English: []
     };
+    let channelIndex = 0;
+    for (let wordIndex = 0; wordIndex < config.wordCount; wordIndex += 1) {
+      const wordFields = fields.filter((field) => field.wordIndex === wordIndex);
+      if (wordFields.length === 0) {
+        lines.SimplifiedChinese.push(`- ch${channelIndex} Word ${wordIndex} 默认通道：Byte 0–3，Bits 0–31，float（沿用 JustFloat）`);
+        lines.TraditionalChinese.push(`- ch${channelIndex} Word ${wordIndex} 預設通道：Byte 0–3，Bits 0–31，float（沿用 JustFloat）`);
+        lines.English.push(`- ch${channelIndex} Word ${wordIndex} default: Byte 0–3, Bits 0–31, float (JustFloat fallback)`);
+        channelIndex += 1;
+        continue;
+      }
+      wordFields.forEach((field) => {
+        lines.SimplifiedChinese.push(`- ch${channelIndex} ${field.name}：Word ${field.wordIndex}，${formatByteRange(field.bitOffset, typeWidth(field.type))}，${formatRange(field.bitOffset, typeWidth(field.type))}，${field.type}`);
+        lines.TraditionalChinese.push(`- ch${channelIndex} ${field.name}：Word ${field.wordIndex}，${formatByteRange(field.bitOffset, typeWidth(field.type))}，${formatRange(field.bitOffset, typeWidth(field.type))}，${field.type}`);
+        lines.English.push(`- ch${channelIndex} ${field.name}: Word ${field.wordIndex}, ${formatByteRange(field.bitOffset, typeWidth(field.type))}, ${formatRange(field.bitOffset, typeWidth(field.type))}, ${field.type}`);
+        channelIndex += 1;
+      });
+    }
+    lines.SimplifiedChinese.push(`- ch${channelIndex}+ 后续 Word：Word ${config.wordCount} 及以后，每个 4 字节 Word 追加一个 float 通道（动态）`);
+    lines.TraditionalChinese.push(`- ch${channelIndex}+ 後續 Word：Word ${config.wordCount} 及以後，每個 4 位元組 Word 追加一個 float 通道（動態）`);
+    lines.English.push(`- ch${channelIndex}+ later Words: Word ${config.wordCount} onward, one float channel per four-byte Word (dynamic)`);
     const examples = {
-      SimplifiedChinese: `uint8_t frame[${payloadBytes + 4}] = {0};\n/* 按描述写入前 ${payloadBytes} 字节的数据区 */\nframe[${payloadBytes}] = 0x00; frame[${payloadBytes + 1}] = 0x00;\nframe[${payloadBytes + 2}] = 0x80; frame[${payloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
-      TraditionalChinese: `uint8_t frame[${payloadBytes + 4}] = {0};\n/* 按描述寫入前 ${payloadBytes} 位元組的資料區 */\nframe[${payloadBytes}] = 0x00; frame[${payloadBytes + 1}] = 0x00;\nframe[${payloadBytes + 2}] = 0x80; frame[${payloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
-      English: `uint8_t frame[${payloadBytes + 4}] = {0};\n/* Fill the first ${payloadBytes} payload bytes using the layout above. */\nframe[${payloadBytes}] = 0x00; frame[${payloadBytes + 1}] = 0x00;\nframe[${payloadBytes + 2}] = 0x80; frame[${payloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`
+      SimplifiedChinese: `uint8_t frame[${minimumPayloadBytes + 4}] = {0};\n/* 最短合法帧：写入前 ${minimumPayloadBytes} 字节；也可在帧尾前追加 float Word */\nframe[${minimumPayloadBytes}] = 0x00; frame[${minimumPayloadBytes + 1}] = 0x00;\nframe[${minimumPayloadBytes + 2}] = 0x80; frame[${minimumPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
+      TraditionalChinese: `uint8_t frame[${minimumPayloadBytes + 4}] = {0};\n/* 最短合法幀：寫入前 ${minimumPayloadBytes} 位元組；也可在幀尾前追加 float Word */\nframe[${minimumPayloadBytes}] = 0x00; frame[${minimumPayloadBytes + 1}] = 0x00;\nframe[${minimumPayloadBytes + 2}] = 0x80; frame[${minimumPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
+      English: `uint8_t frame[${minimumPayloadBytes + 4}] = {0};\n/* Minimum frame: fill the first ${minimumPayloadBytes} bytes; extra float Words may precede the tail. */\nframe[${minimumPayloadBytes}] = 0x00; frame[${minimumPayloadBytes + 1}] = 0x00;\nframe[${minimumPayloadBytes + 2}] = 0x80; frame[${minimumPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`
     };
     return {
       SimplifiedChinese: {
-        format: `${config.engineName} 使用固定长度小端帧：${config.wordCount} 个 Word（${payloadBytes} 字节数据区），随后为帧尾 00 00 80 7F。\n输出通道：\n${lines.SimplifiedChinese.join("\n")}`,
+        format: `${config.engineName} 接受变长小端帧：至少 ${config.wordCount} 个 Word（${minimumPayloadBytes} 字节数据区），随后为帧尾 00 00 80 7F。前 ${config.wordCount} 个 Word 按配置解析；未配置及后续 Word 沿用 JustFloat，分别输出一个 float 通道。\n输出通道：\n${lines.SimplifiedChinese.join("\n")}`,
         example: examples.SimplifiedChinese,
         url
       },
       TraditionalChinese: {
-        format: `${config.engineName} 使用固定長度小端幀：${config.wordCount} 個 Word（${payloadBytes} 位元組資料區），隨後為幀尾 00 00 80 7F。\n輸出通道：\n${lines.TraditionalChinese.join("\n")}`,
+        format: `${config.engineName} 接受可變長度小端幀：至少 ${config.wordCount} 個 Word（${minimumPayloadBytes} 位元組資料區），隨後為幀尾 00 00 80 7F。前 ${config.wordCount} 個 Word 按配置解析；未配置及後續 Word 沿用 JustFloat，分別輸出一個 float 通道。\n輸出通道：\n${lines.TraditionalChinese.join("\n")}`,
         example: examples.TraditionalChinese,
         url
       },
       English: {
-        format: `${config.engineName} uses a fixed-length little-endian frame with ${config.wordCount} Words (${payloadBytes} payload bytes), followed by 00 00 80 7F.\nOutput channels:\n${lines.English.join("\n")}`,
+        format: `${config.engineName} accepts variable-length little-endian frames with at least ${config.wordCount} Words (${minimumPayloadBytes} payload bytes), followed by 00 00 80 7F. The first ${config.wordCount} Words use the configured layout; unconfigured and later Words retain JustFloat behavior and each emit one float channel.\nOutput channels:\n${lines.English.join("\n")}`,
         example: examples.English,
         url
       }
@@ -281,21 +295,45 @@
     );
   }
 
+  function configuredOutputs(fields = sortedFields()) {
+    const outputs = [];
+    for (let wordIndex = 0; wordIndex < state.config.wordCount; wordIndex += 1) {
+      const wordFields = fields.filter((field) => field.wordIndex === wordIndex);
+      if (wordFields.length === 0) {
+        outputs.push({ kind: "fallback", wordIndex, type: "float", name: `Word ${wordIndex} float` });
+      } else {
+        wordFields.forEach((field) => outputs.push({ kind: "field", wordIndex, field }));
+      }
+    }
+    return outputs;
+  }
+
+  function minimumOutputChannelCount() {
+    return configuredOutputs().length;
+  }
+
   function physicalChannelIndexMap() {
-    return new Map(sortedFields().map((field, index) => [field._uiId, index]));
+    return new Map(configuredOutputs()
+      .map((output, index) => ({ output, index }))
+      .filter(({ output }) => output.kind === "field")
+      .map(({ output, index }) => [output.field._uiId, index]));
   }
 
   function channelPaletteAt(channelIndex) {
     return CHANNEL_PALETTE[channelIndex % CHANNEL_PALETTE.length];
   }
 
-  function applyChannelPresentation(element, fieldId, channelIndex) {
+  function applyChannelPalette(element, channelIndex) {
     const color = channelPaletteAt(channelIndex);
-    element.dataset.fieldId = fieldId;
     element.dataset.channelIndex = String(channelIndex);
     element.style.setProperty("--channel-fill", color.fill);
     element.style.setProperty("--channel-border", color.border);
     element.style.setProperty("--channel-text", color.text);
+  }
+
+  function applyChannelPresentation(element, fieldId, channelIndex) {
+    element.dataset.fieldId = fieldId;
+    applyChannelPalette(element, channelIndex);
   }
 
   function viewedFields() {
@@ -477,7 +515,7 @@
       errors.push("派生的 C++ 类名无效或与已有类型冲突，请更换引擎名称。");
     }
     if (!Number.isInteger(config.wordCount) || config.wordCount < 1 || config.wordCount > MAX_WORDS) {
-      errors.push(`4 字节数据单元数必须是 1–${MAX_WORDS} 的整数。`);
+      errors.push(`自定义解析 Word 数必须是 1–${MAX_WORDS} 的整数。`);
     }
     if (!Array.isArray(config.fields) || config.fields.length === 0) errors.push("至少需要配置一个输出字段。");
 
@@ -696,7 +734,7 @@
     refreshDescriptionsFromLayout({ force: true });
     markDirty();
     appendLog("已根据当前布局刷新三语 JSON 描述，并启用自动同步。", "success");
-    showToast("三语描述已刷新", `${state.config.fields.length} 个通道，${state.config.wordCount} 个 Word；自动同步已开启。`, "success");
+    showToast("三语描述已刷新", `至少 ${minimumOutputChannelCount()} 个通道；后续 Word 动态追加 float。`, "success");
   }
 
   function renderWordList() {
@@ -704,6 +742,10 @@
     list.replaceChildren();
     dom["word-list-count"].textContent = String(state.config.wordCount);
     const outputIndexById = physicalChannelIndexMap();
+    const fallbackIndexByWord = new Map(configuredOutputs()
+      .map((output, index) => ({ output, index }))
+      .filter(({ output }) => output.kind === "fallback")
+      .map(({ output, index }) => [output.wordIndex, index]));
     const fieldsByWord = Array.from({ length: state.config.wordCount }, () => []);
     sortedFields().forEach((field) => fieldsByWord[field.wordIndex]?.push(field));
     for (let wordIndex = 0; wordIndex < state.config.wordCount; wordIndex += 1) {
@@ -714,7 +756,7 @@
       button.className = `word-item${wordIndex === state.selectedWord ? " is-selected" : ""}`;
       button.setAttribute("role", "option");
       button.setAttribute("aria-selected", String(wordIndex === state.selectedWord));
-      button.setAttribute("aria-label", `Word ${wordIndex}，${fields.length ? `${fields.length} 个字段` : "空白"}，已用 ${usedBits}/32 bits`);
+      button.setAttribute("aria-label", `Word ${wordIndex}，${fields.length ? `${fields.length} 个自定义字段，已用 ${usedBits}/32 bits` : "无自定义字段，默认按 float 输出"}`);
       button.dataset.wordIndex = String(wordIndex);
       const top = document.createElement("span");
       top.className = "word-item-top";
@@ -729,11 +771,11 @@
       title.append(titleLabel, titleIndex);
       const stats = document.createElement("span");
       stats.className = "word-item-stats";
-      stats.textContent = fields.length ? `${fields.length} 个字段` : "无字段";
+      stats.textContent = fields.length ? `${fields.length} 个字段` : "默认 float";
       top.append(title, stats);
       const usage = document.createElement("span");
       usage.className = "word-item-usage";
-      usage.textContent = fields.length ? `已用 ${usedBits}/32 bits` : "空白 · 已用 0/32 bits";
+      usage.textContent = fields.length ? `已用 ${usedBits}/32 bits` : "JustFloat · 32/32 bits";
       const bar = document.createElement("span");
       bar.className = "word-item-bar";
       for (let bit = 0; bit < 32; bit += 1) {
@@ -742,6 +784,9 @@
         if (field) {
           segment.className = `type-${field.type}`;
           applyChannelPresentation(segment, field._uiId, outputIndexById.get(field._uiId));
+        } else if (fields.length === 0) {
+          segment.className = "type-float is-fallback";
+          applyChannelPalette(segment, fallbackIndexByWord.get(wordIndex));
         }
         bar.append(segment);
       }
@@ -758,10 +803,19 @@
     const selectedField = state.config.fields.find((field) => field._uiId === state.editingId);
     if (selectedField) {
       const selectedChannel = outputIndexById.get(selectedField._uiId);
+      dom["selection-summary"].classList.remove("is-fallback");
       dom["selection-summary"].hidden = false;
       dom["selection-summary"].textContent = `已选 ch${selectedChannel} · ${selectedField.type} · ${formatStorageSize(typeWidth(selectedField.type))}`;
       applyChannelPresentation(dom["selection-summary"], selectedField._uiId, selectedChannel);
+    } else if (!state.config.fields.some((field) => field.wordIndex === state.selectedWord)) {
+      const fallbackChannel = configuredOutputs().findIndex((output) => output.kind === "fallback" && output.wordIndex === state.selectedWord);
+      dom["selection-summary"].classList.add("is-fallback");
+      dom["selection-summary"].hidden = false;
+      dom["selection-summary"].textContent = `默认 ch${fallbackChannel} · float · 4 Bytes`;
+      dom["selection-summary"].removeAttribute("data-field-id");
+      applyChannelPalette(dom["selection-summary"], fallbackChannel);
     } else {
+      dom["selection-summary"].classList.remove("is-fallback");
       dom["selection-summary"].hidden = true;
       dom["selection-summary"].textContent = "";
       dom["selection-summary"].removeAttribute("data-field-id");
@@ -828,12 +882,89 @@
     }
   }
 
+  function appendOutputRow(body, output) {
+    const { channelIndex, wordIndex, field, mode } = output;
+    const dynamic = mode === "dynamic";
+    const fallback = mode === "fallback";
+    const typeName = field?.type || "float";
+    const meta = TYPE_META[typeName];
+    const row = document.createElement("tr");
+    row.className = `channel-tree-row${fallback ? " is-fallback-output" : ""}${dynamic ? " is-dynamic-output" : ""}`;
+    row.dataset.parentWord = dynamic ? "dynamic" : String(wordIndex);
+    row.setAttribute("role", "row");
+    row.setAttribute("aria-level", "2");
+    if (field) {
+      applyChannelPresentation(row, field._uiId, channelIndex);
+      if (field._uiId === state.editingId) row.classList.add("is-selected-field");
+      row.tabIndex = 0;
+      row.title = `ch${channelIndex} · Word ${wordIndex} · ${typeName} · ${formatStorageSize(meta.width)}`;
+    } else {
+      applyChannelPalette(row, channelIndex);
+      row.title = dynamic
+        ? `ch${channelIndex}+ · Word ${state.config.wordCount} 及以后 · 动态 float 通道`
+        : `ch${channelIndex} · Word ${wordIndex} · JustFloat float 回退`;
+    }
+
+    const channel = document.createElement("td");
+    channel.className = "channel-index";
+    const treeCell = document.createElement("span");
+    treeCell.className = "tree-channel-cell";
+    const connector = document.createElement("span");
+    connector.className = "tree-connector";
+    const channelBadge = document.createElement("span");
+    channelBadge.className = "channel-index-badge";
+    channelBadge.textContent = `ch${channelIndex}${dynamic ? "+" : ""}`;
+    treeCell.append(connector, channelBadge);
+    channel.append(treeCell);
+
+    const name = document.createElement("td");
+    name.className = "channel-name";
+    name.textContent = field?.name || (dynamic ? "后续 Word" : `Word ${wordIndex} 默认 float`);
+    const type = document.createElement("td");
+    const typeChip = document.createElement("span");
+    typeChip.className = `type-chip type-${typeName}`;
+    typeChip.textContent = typeName;
+    type.append(typeChip);
+    const position = document.createElement("td");
+    position.className = "channel-position";
+    const primary = document.createElement("span");
+    primary.className = "position-primary position-bytes";
+    primary.textContent = dynamic ? `Word ${state.config.wordCount}…` : formatByteRange(field?.bitOffset || 0, meta.width);
+    const secondary = document.createElement("span");
+    secondary.className = "position-secondary position-bits";
+    secondary.textContent = dynamic ? "每 4 Bytes" : formatRange(field?.bitOffset || 0, meta.width);
+    position.append(primary, secondary);
+    const conversion = document.createElement("td");
+    conversion.textContent = field ? meta.conversion : (dynamic ? "后续每个 Word 按 JustFloat float 追加" : "未配置，按 JustFloat float 原值输出");
+    const action = document.createElement("td");
+    if (field) {
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "row-edit";
+      edit.textContent = "编辑";
+      edit.dataset.fieldId = field._uiId;
+      action.append(edit);
+    } else {
+      const badge = document.createElement("span");
+      badge.className = "output-mode-badge";
+      badge.textContent = dynamic ? "动态" : "默认";
+      action.append(badge);
+    }
+    row.append(channel, name, type, position, conversion, action);
+    body.append(row);
+  }
+
   function renderChannelTable() {
     const physical = sortedFields();
+    const outputs = configuredOutputs(physical);
     const outputIndexById = physicalChannelIndexMap();
+    const fallbackIndexByWord = new Map(outputs
+      .map((output, index) => ({ output, index }))
+      .filter(({ output }) => output.kind === "fallback")
+      .map(({ output, index }) => [output.wordIndex, index]));
     const body = dom["channel-table-body"];
     body.replaceChildren();
-    dom["channel-count"].textContent = String(physical.length);
+    dom["channel-count"].textContent = `${outputs.length}+`;
     dom["empty-table"].hidden = true;
     document.querySelector(".channel-table").hidden = false;
 
@@ -843,6 +974,7 @@
       if (state.channelSort === "type") fields = [...fields].sort((left, right) => left.type.localeCompare(right.type) || left.bitOffset - right.bitOffset);
       const usedBits = fields.reduce((sum, field) => sum + typeWidth(field.type), 0);
       const collapsed = state.collapsedWords.has(wordIndex);
+      const fallbackChannel = fallbackIndexByWord.get(wordIndex);
 
       const parent = document.createElement("tr");
       parent.className = "word-tree-row";
@@ -862,13 +994,14 @@
       const title = document.createElement("strong");
       title.textContent = `Word ${wordIndex}`;
       const summary = document.createElement("span");
-      summary.textContent = fields.length ? `${fields.length} 个通道 · 已用 ${usedBits}/32 bits` : "空白 · 0 个通道";
+      summary.textContent = fields.length ? `${fields.length} 个自定义通道 · 已用 ${usedBits}/32 bits` : "默认 float · 1 个通道";
       const usageBar = document.createElement("span");
       usageBar.className = "tree-word-bar";
       for (let bit = 0; bit < 32; bit += 1) {
         const field = fields.find((item) => bit >= item.bitOffset && bit < item.bitOffset + typeWidth(item.type));
         const segment = document.createElement("i");
         if (field) applyChannelPresentation(segment, field._uiId, outputIndexById.get(field._uiId));
+        else if (fields.length === 0) applyChannelPalette(segment, fallbackChannel);
         usageBar.append(segment);
       }
       parentButton.append(chevron, title, summary, usageBar);
@@ -877,61 +1010,46 @@
       body.append(parent);
 
       if (collapsed) continue;
-      fields.forEach((field) => {
-        const meta = TYPE_META[field.type];
-        const channelIndex = outputIndexById.get(field._uiId);
-        const row = document.createElement("tr");
-        row.className = "channel-tree-row";
-        row.dataset.parentWord = String(wordIndex);
-        applyChannelPresentation(row, field._uiId, channelIndex);
-        if (field._uiId === state.editingId) row.classList.add("is-selected-field");
-        row.tabIndex = 0;
-        row.setAttribute("role", "row");
-        row.setAttribute("aria-level", "2");
-        row.title = `ch${channelIndex} · Word ${field.wordIndex} · ${field.type} · ${formatStorageSize(meta.width)}`;
-
-        const channel = document.createElement("td");
-        channel.className = "channel-index";
-        const treeCell = document.createElement("span");
-        treeCell.className = "tree-channel-cell";
-        const connector = document.createElement("span");
-        connector.className = "tree-connector";
-        const channelBadge = document.createElement("span");
-        channelBadge.className = "channel-index-badge";
-        channelBadge.textContent = `ch${channelIndex}`;
-        treeCell.append(connector, channelBadge);
-        channel.append(treeCell);
-
-        const name = document.createElement("td");
-        name.className = "channel-name";
-        name.textContent = field.name;
-        const type = document.createElement("td");
-        const typeChip = document.createElement("span");
-        typeChip.className = `type-chip type-${field.type}`;
-        typeChip.textContent = field.type;
-        type.append(typeChip);
-        const position = document.createElement("td");
-        position.className = "channel-position";
-        const byteRange = document.createElement("span");
-        byteRange.className = "position-primary position-bytes";
-        byteRange.textContent = formatByteRange(field.bitOffset, meta.width);
-        const bitRange = document.createElement("span");
-        bitRange.className = "position-secondary position-bits";
-        bitRange.textContent = formatRange(field.bitOffset, meta.width);
-        position.append(byteRange, bitRange);
-        const conversion = document.createElement("td");
-        conversion.textContent = meta.conversion;
-        const action = document.createElement("td");
-        const edit = document.createElement("button");
-        edit.type = "button";
-        edit.className = "row-edit";
-        edit.textContent = "编辑";
-        edit.dataset.fieldId = field._uiId;
-        action.append(edit);
-        row.append(channel, name, type, position, conversion, action);
-        body.append(row);
-      });
+      if (fields.length === 0) {
+        appendOutputRow(body, { channelIndex: fallbackChannel, wordIndex, mode: "fallback" });
+      } else {
+        fields.forEach((field) => appendOutputRow(body, {
+          channelIndex: outputIndexById.get(field._uiId),
+          wordIndex,
+          field,
+          mode: "field"
+        }));
+      }
     }
+
+    const dynamicChannelIndex = outputs.length;
+    const dynamicParent = document.createElement("tr");
+    dynamicParent.className = "word-tree-row is-dynamic-word";
+    dynamicParent.setAttribute("role", "row");
+    dynamicParent.setAttribute("aria-level", "1");
+    dynamicParent.setAttribute("aria-expanded", "true");
+    const dynamicCell = document.createElement("td");
+    dynamicCell.colSpan = 6;
+    const dynamicSummary = document.createElement("div");
+    dynamicSummary.className = "word-tree-toggle is-static";
+    const dynamicIcon = document.createElement("span");
+    dynamicIcon.className = "icon icon-arrow-down";
+    const dynamicTitle = document.createElement("strong");
+    dynamicTitle.textContent = `Word ${state.config.wordCount}+`;
+    const dynamicText = document.createElement("span");
+    dynamicText.textContent = "后续每个 Word · 1 个 float 通道";
+    const dynamicBar = document.createElement("span");
+    dynamicBar.className = "tree-word-bar";
+    for (let bit = 0; bit < 32; bit += 1) {
+      const segment = document.createElement("i");
+      applyChannelPalette(segment, dynamicChannelIndex);
+      dynamicBar.append(segment);
+    }
+    dynamicSummary.append(dynamicIcon, dynamicTitle, dynamicText, dynamicBar);
+    dynamicCell.append(dynamicSummary);
+    dynamicParent.append(dynamicCell);
+    body.append(dynamicParent);
+    appendOutputRow(body, { channelIndex: dynamicChannelIndex, wordIndex: state.config.wordCount, mode: "dynamic" });
   }
 
   function linkedFieldId(node, container) {
@@ -961,14 +1079,21 @@
   }
 
   function renderStats() {
-    const usedBits = state.config.fields.reduce((sum, field) => sum + typeWidth(field.type), 0);
+    const fields = sortedFields();
+    const usedBits = Array.from({ length: state.config.wordCount }, (_, wordIndex) => {
+      const wordFields = fields.filter((field) => field.wordIndex === wordIndex);
+      return wordFields.length
+        ? wordFields.reduce((sum, field) => sum + typeWidth(field.type), 0)
+        : 32;
+    }).reduce((sum, value) => sum + value, 0);
     const totalBits = state.config.wordCount * 32;
     const utilization = totalBits ? Math.round((usedBits / totalBits) * 100) : 0;
+    const minimumChannels = minimumOutputChannelCount();
     dom["stat-words"].textContent = String(state.config.wordCount);
-    dom["stat-fields"].textContent = String(state.config.fields.length);
+    dom["stat-fields"].textContent = `${minimumChannels}+`;
     dom["stat-used"].textContent = `${utilization}%`;
     dom["layout-stat-words"].textContent = String(state.config.wordCount);
-    dom["layout-stat-fields"].textContent = String(state.config.fields.length);
+    dom["layout-stat-fields"].textContent = `${minimumChannels}+`;
     dom["frame-byte-count"].textContent = `${state.config.wordCount * 4} Bytes`;
   }
 
@@ -1101,7 +1226,7 @@
     if (!state.busy) {
       let status = "ready";
       let title = "配置和构建环境已就绪";
-      let detail = `${state.config.fields.length} 个通道 · ${state.config.wordCount} 个数据单元 · ${(state.config.wordCount + 1) * 4} Bytes/帧（含帧尾）`;
+      let detail = `至少 ${minimumOutputChannelCount()} 个通道 · 至少 ${(state.config.wordCount + 1) * 4} Bytes/帧（含帧尾） · 后续 Word 按 float`;
       let icon = "check";
       if (errors.length) {
         status = "error";
@@ -1247,13 +1372,13 @@
     const next = Number(value);
     if (!Number.isInteger(next) || next < 1 || next > MAX_WORDS) {
       dom["word-count"].value = String(state.config.wordCount);
-      showToast("数据单元数量无效", `请输入 1–${MAX_WORDS} 之间的整数。`, "error");
+      showToast("配置 Word 数量无效", `请输入 1–${MAX_WORDS} 之间的整数。`, "error");
       return;
     }
     const highestUsed = state.config.fields.reduce((highest, field) => Math.max(highest, field.wordIndex), -1);
     if (next <= highestUsed) {
       dom["word-count"].value = String(state.config.wordCount);
-      showToast("无法缩减数据单元", `Word ${highestUsed} 仍包含字段，请先清空超出范围的单元。`, "error");
+      showToast("无法缩减配置 Word", `Word ${highestUsed} 仍包含字段，请先清空超出范围的 Word。`, "error");
       return;
     }
     if (next === state.config.wordCount) return;
@@ -1295,8 +1420,8 @@
     if (!fields.length || state.busy) return;
     const confirmed = await showConfirmDialog({
       title: `清空 Word ${state.selectedWord}？`,
-      message: `将删除该 Word 中的 ${fields.length} 个通道。`,
-      detail: "此操作只修改当前配置，保存前仍可重新载入原配置。",
+      message: `将删除该 Word 中的 ${fields.length} 个自定义通道。`,
+      detail: "清空后该 Word 不会消失，而是恢复为一个 JustFloat float 通道。",
       confirmLabel: "清空 Word",
       tone: "danger"
     });
@@ -1305,7 +1430,7 @@
     refreshDescriptionsFromLayout();
     markDirty();
     resetEditor();
-    appendLog(`已清空 Word ${state.selectedWord}。`, "warning");
+    appendLog(`已清空 Word ${state.selectedWord} 的自定义字段；该 Word 将按 float 输出。`, "warning");
     render();
   }
 
@@ -1353,7 +1478,7 @@
       resetEditor();
       markClean();
       appendLog(`已载入配置${state.configPath ? `：${state.configPath}` : ""}`, "success");
-      showToast("配置已载入", `${state.config.fields.length} 个字段，${state.config.wordCount} 个数据单元。`);
+      showToast("配置已载入", `${state.config.wordCount} 个配置 Word，至少 ${minimumOutputChannelCount()} 个输出通道。`);
       render();
     } catch (error) {
       handleError("载入配置失败", error);

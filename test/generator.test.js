@@ -127,6 +127,7 @@ test('migrates a v1 configuration to schema v2 and supplies descriptions', () =>
   assert.match(migrated.descriptions.SimplifiedChinese.format, /Legacy Float/);
   assert.equal(typeof migrated.descriptions.TraditionalChinese.example, 'string');
   assert.match(migrated.descriptions.English.url, /^https:\/\//);
+  assert.match(migrated.descriptions.English.format, /later Words retain JustFloat behavior/);
 });
 
 test('rejects derived built-in names, overlaps, unaligned fields, and invalid descriptions', () => {
@@ -174,9 +175,14 @@ test('generates beside justfloat, preserves sibling shared paths, and emits exac
   assert.match(header, /class CustomFloat/);
   assert.match(header, /Q_PLUGIN_METADATA\(IID "VOFA\+\.Plugin\.CustomFloat"\)/);
   assert.doesNotMatch(header, /\bclass JustFloat\b/);
-  assert.match(source, /const int expectedCount = \(1 \* 4\) \+ 4;/);
-  assert.match(source, /word0 >> 16/);
-  assert.match(source, /word0 >> 31/);
+  assert.match(source, /const int minimumCount = \(1 \* 4\) \+ 4;/);
+  assert.match(source, /count < minimumCount \|\| count % 4 != 0/);
+  assert.match(source, /for \(int offset = 0; offset < payloadBytes; offset \+= 4\)/);
+  assert.match(source, /case 0:/);
+  assert.match(source, /word >> 16/);
+  assert.match(source, /word >> 31/);
+  assert.match(source, /default:[\s\S]*std::memcpy\(&value, data \+ offset/);
+  assert.doesNotMatch(source, /count != expectedCount/);
   assert.match(source, /CustomFloat::ProcessingDatas/);
   assert.match(source, /这是个图片前导帧/);
   assert.doesNotMatch(source, /JustFloat::/);

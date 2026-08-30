@@ -73,7 +73,7 @@
               <div class="section-heading">
                 <div><h2>基础设置</h2><p>只需输入一个名称，其余标识符和文件名自动生成。</p></div>
                 <div class="section-metrics" aria-label="配置统计">
-                  <span><strong id="stat-words">4</strong> 个数据单元</span>
+                  <span><strong id="stat-words">4</strong> 个配置 Word</span>
                   <span><strong id="stat-fields">4</strong> 个通道</span>
                   <span><strong id="stat-used">100%</strong> 位利用率</span>
                 </div>
@@ -85,13 +85,13 @@
                   <span class="field-hint">使用英文字母和数字，例如 Packed Float。</span>
                 </label>
                 <label class="field-control word-count-control">
-                  <span class="field-label">4 字节数据单元数</span>
+                  <span class="field-label">自定义解析 Word 数</span>
                   <div class="number-stepper">
-                    <button id="word-count-minus" type="button" aria-label="减少数据单元"><span class="icon icon-subtract"></span></button>
+                    <button id="word-count-minus" type="button" aria-label="减少配置 Word"><span class="icon icon-subtract"></span></button>
                     <input id="word-count" type="number" min="1" max="256" value="4" inputmode="numeric" />
-                    <button id="word-count-plus" type="button" aria-label="增加数据单元"><span class="icon icon-add"></span></button>
+                    <button id="word-count-plus" type="button" aria-label="增加配置 Word"><span class="icon icon-add"></span></button>
                   </div>
-                  <span class="field-hint">数据区 <strong id="frame-byte-count">16 Bytes</strong>，另含 4 Bytes 帧尾。</span>
+                  <span class="field-hint">至少 <strong id="frame-byte-count">16 Bytes</strong> 数据区；后续 Word 按 float 输出。</span>
                 </label>
                 <div class="derived-block" aria-label="自动派生标识符">
                   <span class="derived-label">自动派生</span>
@@ -133,23 +133,23 @@
 
           <div class="page-view" id="page-layout" data-page="layout" hidden>
             <header class="page-heading">
-              <div><h1>通道布局</h1><p>在保持 4 字节对齐的前提下拆分数据字段，并检查输出通道。</p></div>
+              <div><h1>通道布局</h1><p>配置前面的 Word；帧中未配置和后续 Word 继续按 JustFloat float 输出。</p></div>
               <div class="section-metrics" aria-label="布局统计">
-                <span><strong id="layout-stat-words">4</strong> 个 Word</span>
-                <span><strong id="layout-stat-fields">4</strong> 个通道</span>
+                <span><strong id="layout-stat-words">4</strong> 个配置 Word</span>
+                <span><strong id="layout-stat-fields">4+</strong> 个输出通道</span>
               </div>
             </header>
 
             <section class="tool-section" id="layout-section">
               <div class="section-heading">
-                <div><h2>4 字节布局</h2><p>每个 Word 固定 32 bits；字段按小端字节序放置，空白位保留为占位。</p></div>
+                <div><h2>4 字节布局</h2><p>每个 Word 固定 32 bits；空 Word 默认输出 float，已拆分 Word 的空白位不输出。</p></div>
                 <div class="section-actions">
                   <button class="button button-subtle" id="fill-floats" type="button">恢复全 Float</button>
                   <button class="button button-subtle button-danger-text" id="clear-word" type="button">清空当前 Word</button>
                 </div>
               </div>
               <div class="word-browser">
-                <span class="field-label">数据单元 <b id="word-list-count">4</b></span>
+                <span class="field-label">配置 Word <b id="word-list-count">4</b></span>
                 <div class="word-list" id="word-list" role="listbox" aria-label="选择 4 字节数据单元"></div>
               </div>
               <div class="layout-workbench">
@@ -186,7 +186,7 @@
 
             <section class="tool-section" id="channels-section">
               <div class="section-heading">
-                <div><h2>输出通道</h2><p>引擎按 Word 和 Bit 起点升序输出，表格顺序即 VOFA+ 通道顺序。</p></div>
+                <div><h2>输出通道</h2><p>先输出配置前缀，再将帧中后续每个 Word 作为一个 float 通道追加。</p></div>
                 <div class="table-tools">
                   <label for="channel-sort">查看排序</label>
                   <span class="select-shell select-shell-compact"><select id="channel-sort"><option value="physical">物理位置</option><option value="name">通道名称</option><option value="type">数据类型</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span>
@@ -243,7 +243,7 @@
       <footer class="action-bar">
         <div class="build-status">
           <span class="dock-icon is-ready" id="dock-icon"><span class="icon icon-check"></span></span>
-          <span><strong id="dock-title">配置检查通过</strong><small id="dock-detail">4 个通道 · 20 Bytes/帧（含帧尾）</small></span>
+          <span><strong id="dock-title">配置检查通过</strong><small id="dock-detail">至少 4 个通道 · 20 Bytes/帧（含帧尾）</small></span>
         </div>
         <div class="footer-actions">
           <button class="button button-subtle" id="open-generated" type="button"><span class="icon icon-folder-open"></span>打开产物目录</button>

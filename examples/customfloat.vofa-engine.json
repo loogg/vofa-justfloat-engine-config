@@ -3,18 +3,18 @@
   "engineName": "Custom Float",
   "descriptions": {
     "SimplifiedChinese": {
-      "format": "Custom Float 使用 4 字节小端数据区，依次输出 uint16、uint8 和 8 个 bit 通道；数据区后跟帧尾 00 00 80 7F。",
-      "example": "unsigned char frame[8] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame));",
+      "format": "Custom Float 将 Word 0 拆分为 uint16、uint8 和 8 个 bit 通道；最短数据区为 4 字节，帧尾前的后续 Word 各自沿用 JustFloat 输出一个 float 通道。",
+      "example": "unsigned char frame[12] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // 后续 Word 为 2.5f",
       "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
     },
     "TraditionalChinese": {
-      "format": "Custom Float 使用 4 位元組小端資料區，依序輸出 uint16、uint8 和 8 個 bit 通道；資料區後跟幀尾 00 00 80 7F。",
-      "example": "unsigned char frame[8] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame));",
+      "format": "Custom Float 將 Word 0 拆分為 uint16、uint8 和 8 個 bit 通道；最短資料區為 4 位元組，幀尾前的後續 Word 各自沿用 JustFloat 輸出一個 float 通道。",
+      "example": "unsigned char frame[12] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // 後續 Word 為 2.5f",
       "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
     },
     "English": {
-      "format": "Custom Float uses one four-byte little-endian data word and emits uint16, uint8, and eight bit channels; append 00 00 80 7F as the frame tail.",
-      "example": "unsigned char frame[8] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame));",
+      "format": "Custom Float splits Word 0 into uint16, uint8, and eight bit channels. The minimum payload is four bytes; every later Word before the frame tail retains JustFloat behavior and emits one float channel.",
+      "example": "unsigned char frame[12] = {0x34, 0x12, 0x56, 0xA5, 0x00, 0x00, 0x20, 0x40, 0x00, 0x00, 0x80, 0x7F};\nwrite((char *)frame, sizeof(frame)); // later Word is 2.5f",
       "url": "https://www.vofa.plus/docs/learning/dataengines/introduce"
     }
   },
