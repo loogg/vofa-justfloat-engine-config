@@ -11,7 +11,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 test('package and lock versions are the single synchronized release version', () => {
   const packageJson = JSON.parse(read('package.json'));
   const packageLock = JSON.parse(read('package-lock.json'));
-  assert.equal(packageJson.version, '1.3.0');
+  assert.equal(packageJson.version, '1.3.1');
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageJson.name, 'vofa-justfloat-engine-config');
@@ -37,6 +37,13 @@ test('renderer uses Fluent confirmation, Word tree, and offline three-language g
   assert.match(renderer, /function refreshDescriptionsFromLayout/);
   assert.match(renderer, /function pauseDescriptionAutoSync/);
   assert.match(renderer, /function configuredOutputs/);
+  assert.match(renderer, /async function setWordCount/);
+  assert.match(renderer, /wordCountChangePending/);
+  assert.match(renderer, /缩减并删除字段/);
+  assert.match(renderer, /fieldsToRemove/);
+  assert.match(renderer, /event\.key !== "Enter"/);
+  assert.match(renderer, /event\.currentTarget\.blur\(\)/);
+  assert.doesNotMatch(renderer, /无法缩减配置 Word/);
   assert.match(renderer, /后续每个 Word/);
   assert.match(renderer, /word-tree-row/);
   assert.match(renderer, /channel-tree-row/);

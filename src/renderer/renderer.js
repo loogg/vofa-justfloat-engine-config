@@ -144,6 +144,7 @@
     dirty: false,
     busy: false,
     busyAction: "",
+    wordCountChangePending: false,
     environmentLoaded: false,
     environmentScanning: false
   };
@@ -1285,6 +1286,10 @@
     dom["fill-floats"].disabled = state.busy;
     dom["clear-word"].disabled = state.busy;
     dom["browse-repo"].disabled = state.busy || !api;
+    const wordCountBlocked = state.busy || state.wordCountChangePending;
+    dom["word-count"].disabled = wordCountBlocked;
+    dom["word-count-minus"].disabled = wordCountBlocked || state.config.wordCount <= 1;
+    dom["word-count-plus"].disabled = wordCountBlocked || state.config.wordCount >= MAX_WORDS;
   }
 
   function resetEditor(options = {}) {
@@ -1388,20 +1393,52 @@
     render();
   }
 
-  function setWordCount(value) {
+  async function setWordCount(value) {
+    if (state.wordCountChangePending) return;
+    if (state.busy) {
+      dom["word-count"].value = String(state.config.wordCount);
+      return;
+    }
     const next = Number(value);
     if (!Number.isInteger(next) || next < 1 || next > MAX_WORDS) {
       dom["word-count"].value = String(state.config.wordCount);
       showToast("配置 Word 数量无效", `请输入 1–${MAX_WORDS} 之间的整数。`, "error");
       return;
     }
-    const highestUsed = state.config.fields.reduce((highest, field) => Math.max(highest, field.wordIndex), -1);
-    if (next <= highestUsed) {
-      dom["word-count"].value = String(state.config.wordCount);
-      showToast("无法缩减配置 Word", `Word ${highestUsed} 仍包含字段，请先清空超出范围的 Word。`, "error");
+    const current = state.config.wordCount;
+    if (next === current) {
+      dom["word-count"].value = String(current);
       return;
     }
-    if (next === state.config.wordCount) return;
+    const fieldsToRemove = next < current
+      ? state.config.fields.filter((field) => field.wordIndex >= next)
+      : [];
+    if (fieldsToRemove.length > 0) {
+      const removedWordRange = next === current - 1
+        ? `Word ${next}`
+        : `Word ${next}–${current - 1}`;
+      state.wordCountChangePending = true;
+      dom["word-count"].value = String(next);
+      renderValidation();
+      let confirmed = false;
+      try {
+        confirmed = await showConfirmDialog({
+          title: `将配置 Word 缩减为 ${next}？`,
+          message: `自定义解析 Word 数将从 ${current} 缩减为 ${next}。`,
+          detail: `${removedWordRange} 中的 ${fieldsToRemove.length} 个字段将被删除；其他 Word 不受影响。`,
+          confirmLabel: "缩减并删除字段",
+          tone: "danger"
+        });
+      } finally {
+        state.wordCountChangePending = false;
+        renderValidation();
+      }
+      if (!confirmed) {
+        dom["word-count"].value = String(current);
+        return;
+      }
+      state.config.fields = state.config.fields.filter((field) => field.wordIndex < next);
+    }
     state.config.wordCount = next;
     state.collapsedWords = new Set([...state.collapsedWords].filter((wordIndex) => wordIndex < next));
     dom["word-count"].value = String(next);
@@ -1409,6 +1446,11 @@
     refreshDescriptionsFromLayout();
     markDirty();
     resetEditor({ preserveType: true });
+    if (fieldsToRemove.length > 0) {
+      appendLog(`已将配置 Word 从 ${current} 缩减为 ${next}，并删除 ${fieldsToRemove.length} 个越界字段。`, "warning");
+    } else {
+      appendLog(`已将配置 Word 从 ${current} 调整为 ${next}。`, "info");
+    }
     render();
   }
 
@@ -1916,9 +1958,20 @@
       renderEnvironmentSummary();
       renderValidation();
     });
-    dom["word-count"].addEventListener("change", (event) => setWordCount(event.target.value));
-    dom["word-count-minus"].addEventListener("click", () => setWordCount(state.config.wordCount - 1));
-    dom["word-count-plus"].addEventListener("click", () => setWordCount(state.config.wordCount + 1));
+    dom["word-count"].addEventListener("change", (event) => {
+      void setWordCount(event.target.value);
+    });
+    dom["word-count"].addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      event.currentTarget.blur();
+    });
+    dom["word-count-minus"].addEventListener("click", () => {
+      void setWordCount(state.config.wordCount - 1);
+    });
+    dom["word-count-plus"].addEventListener("click", () => {
+      void setWordCount(state.config.wordCount + 1);
+    });
 
     dom["description-tabs"].addEventListener("click", (event) => {
       const tab = event.target.closest("[data-language]");
