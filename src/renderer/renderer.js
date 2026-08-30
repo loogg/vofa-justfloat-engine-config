@@ -176,7 +176,7 @@
     const fields = [...config.fields].sort((left, right) =>
       left.wordIndex - right.wordIndex || left.bitOffset - right.bitOffset || left.name.localeCompare(right.name)
     );
-    const minimumPayloadBytes = config.wordCount * 4;
+    const configuredPayloadBytes = config.wordCount * 4;
     const url = config.descriptions?.SimplifiedChinese?.url
       || "https://www.vofa.plus/docs/learning/dataengines/introduce";
     const lines = {
@@ -205,23 +205,23 @@
     lines.TraditionalChinese.push(`- ch${channelIndex}+ 後續 Word：Word ${config.wordCount} 及以後，每個 4 位元組 Word 追加一個 float 通道（動態）`);
     lines.English.push(`- ch${channelIndex}+ later Words: Word ${config.wordCount} onward, one float channel per four-byte Word (dynamic)`);
     const examples = {
-      SimplifiedChinese: `uint8_t frame[${minimumPayloadBytes + 4}] = {0};\n/* 最短合法帧：写入前 ${minimumPayloadBytes} 字节；也可在帧尾前追加 float Word */\nframe[${minimumPayloadBytes}] = 0x00; frame[${minimumPayloadBytes + 1}] = 0x00;\nframe[${minimumPayloadBytes + 2}] = 0x80; frame[${minimumPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
-      TraditionalChinese: `uint8_t frame[${minimumPayloadBytes + 4}] = {0};\n/* 最短合法幀：寫入前 ${minimumPayloadBytes} 位元組；也可在幀尾前追加 float Word */\nframe[${minimumPayloadBytes}] = 0x00; frame[${minimumPayloadBytes + 1}] = 0x00;\nframe[${minimumPayloadBytes + 2}] = 0x80; frame[${minimumPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
-      English: `uint8_t frame[${minimumPayloadBytes + 4}] = {0};\n/* Minimum frame: fill the first ${minimumPayloadBytes} bytes; extra float Words may precede the tail. */\nframe[${minimumPayloadBytes}] = 0x00; frame[${minimumPayloadBytes + 1}] = 0x00;\nframe[${minimumPayloadBytes + 2}] = 0x80; frame[${minimumPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`
+      SimplifiedChinese: `uint8_t frame[${configuredPayloadBytes + 4}] = {0};\n/* 仅为示例：帧尾前可以少发配置 Word，也可以追加更多 float Word */\nframe[${configuredPayloadBytes}] = 0x00; frame[${configuredPayloadBytes + 1}] = 0x00;\nframe[${configuredPayloadBytes + 2}] = 0x80; frame[${configuredPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
+      TraditionalChinese: `uint8_t frame[${configuredPayloadBytes + 4}] = {0};\n/* 僅為範例：幀尾前可以少發配置 Word，也可以追加更多 float Word */\nframe[${configuredPayloadBytes}] = 0x00; frame[${configuredPayloadBytes + 1}] = 0x00;\nframe[${configuredPayloadBytes + 2}] = 0x80; frame[${configuredPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`,
+      English: `uint8_t frame[${configuredPayloadBytes + 4}] = {0};\n/* Example only: configured Words may be omitted or extra float Words may precede the tail. */\nframe[${configuredPayloadBytes}] = 0x00; frame[${configuredPayloadBytes + 1}] = 0x00;\nframe[${configuredPayloadBytes + 2}] = 0x80; frame[${configuredPayloadBytes + 3}] = 0x7F;\nwrite((char *)frame, sizeof(frame));`
     };
     return {
       SimplifiedChinese: {
-        format: `${config.engineName} 接受变长小端帧：至少 ${config.wordCount} 个 Word（${minimumPayloadBytes} 字节数据区），随后为帧尾 00 00 80 7F。前 ${config.wordCount} 个 Word 按配置解析；未配置及后续 Word 沿用 JustFloat，分别输出一个 float 通道。\n输出通道：\n${lines.SimplifiedChinese.join("\n")}`,
+        format: `${config.engineName} 接受变长小端帧，数据区可包含任意数量的 4 字节 Word，随后为帧尾 00 00 80 7F。帧中实际存在的前 ${config.wordCount} 个 Word 按配置解析；未配置及后续 Word 沿用 JustFloat，分别输出一个 float 通道。通道数随实际帧长变化。\n输出通道：\n${lines.SimplifiedChinese.join("\n")}`,
         example: examples.SimplifiedChinese,
         url
       },
       TraditionalChinese: {
-        format: `${config.engineName} 接受可變長度小端幀：至少 ${config.wordCount} 個 Word（${minimumPayloadBytes} 位元組資料區），隨後為幀尾 00 00 80 7F。前 ${config.wordCount} 個 Word 按配置解析；未配置及後續 Word 沿用 JustFloat，分別輸出一個 float 通道。\n輸出通道：\n${lines.TraditionalChinese.join("\n")}`,
+        format: `${config.engineName} 接受可變長度小端幀，資料區可包含任意數量的 4 位元組 Word，隨後為幀尾 00 00 80 7F。幀中實際存在的前 ${config.wordCount} 個 Word 按配置解析；未配置及後續 Word 沿用 JustFloat，分別輸出一個 float 通道。通道數隨實際幀長變化。\n輸出通道：\n${lines.TraditionalChinese.join("\n")}`,
         example: examples.TraditionalChinese,
         url
       },
       English: {
-        format: `${config.engineName} accepts variable-length little-endian frames with at least ${config.wordCount} Words (${minimumPayloadBytes} payload bytes), followed by 00 00 80 7F. The first ${config.wordCount} Words use the configured layout; unconfigured and later Words retain JustFloat behavior and each emit one float channel.\nOutput channels:\n${lines.English.join("\n")}`,
+        format: `${config.engineName} accepts variable-length little-endian frames containing any number of four-byte Words, followed by 00 00 80 7F. Configured parsing applies only to the first ${config.wordCount} Words that are actually present; unconfigured and later Words retain JustFloat behavior and each emit one float channel. Channel count follows the actual frame length.\nOutput channels:\n${lines.English.join("\n")}`,
         example: examples.English,
         url
       }
@@ -308,7 +308,7 @@
     return outputs;
   }
 
-  function minimumOutputChannelCount() {
+  function configuredPrefixChannelCount() {
     return configuredOutputs().length;
   }
 
@@ -734,7 +734,7 @@
     refreshDescriptionsFromLayout({ force: true });
     markDirty();
     appendLog("已根据当前布局刷新三语 JSON 描述，并启用自动同步。", "success");
-    showToast("三语描述已刷新", `至少 ${minimumOutputChannelCount()} 个通道；后续 Word 动态追加 float。`, "success");
+    showToast("三语描述已刷新", `通道数随实际帧长变化；已配置前 ${state.config.wordCount} 个 Word。`, "success");
   }
 
   function renderWordList() {
@@ -775,7 +775,7 @@
       top.append(title, stats);
       const usage = document.createElement("span");
       usage.className = "word-item-usage";
-      usage.textContent = fields.length ? `已用 ${usedBits}/32 bits` : "JustFloat · 32/32 bits";
+      usage.textContent = fields.length ? `已用 ${usedBits}/32 bits` : "帧包含时 · float";
       const bar = document.createElement("span");
       bar.className = "word-item-bar";
       for (let bit = 0; bit < 32; bit += 1) {
@@ -964,7 +964,7 @@
       .map(({ output, index }) => [output.wordIndex, index]));
     const body = dom["channel-table-body"];
     body.replaceChildren();
-    dom["channel-count"].textContent = `${outputs.length}+`;
+    dom["channel-count"].textContent = "动态";
     dom["empty-table"].hidden = true;
     document.querySelector(".channel-table").hidden = false;
 
@@ -994,7 +994,7 @@
       const title = document.createElement("strong");
       title.textContent = `Word ${wordIndex}`;
       const summary = document.createElement("span");
-      summary.textContent = fields.length ? `${fields.length} 个自定义通道 · 已用 ${usedBits}/32 bits` : "默认 float · 1 个通道";
+      summary.textContent = fields.length ? `${fields.length} 个自定义通道 · 帧包含时输出` : "默认 float · 帧包含时输出";
       const usageBar = document.createElement("span");
       usageBar.className = "tree-word-bar";
       for (let bit = 0; bit < 32; bit += 1) {
@@ -1088,12 +1088,11 @@
     }).reduce((sum, value) => sum + value, 0);
     const totalBits = state.config.wordCount * 32;
     const utilization = totalBits ? Math.round((usedBits / totalBits) * 100) : 0;
-    const minimumChannels = minimumOutputChannelCount();
     dom["stat-words"].textContent = String(state.config.wordCount);
-    dom["stat-fields"].textContent = `${minimumChannels}+`;
+    dom["stat-fields"].textContent = "动态";
     dom["stat-used"].textContent = `${utilization}%`;
     dom["layout-stat-words"].textContent = String(state.config.wordCount);
-    dom["layout-stat-fields"].textContent = `${minimumChannels}+`;
+    dom["layout-stat-fields"].textContent = "动态";
     dom["frame-byte-count"].textContent = `${state.config.wordCount * 4} Bytes`;
   }
 
@@ -1226,7 +1225,7 @@
     if (!state.busy) {
       let status = "ready";
       let title = "配置和构建环境已就绪";
-      let detail = `至少 ${minimumOutputChannelCount()} 个通道 · 至少 ${(state.config.wordCount + 1) * 4} Bytes/帧（含帧尾） · 后续 Word 按 float`;
+      let detail = `通道数动态 · 已配置前 ${state.config.wordCount} 个 Word（完整前缀为 ${configuredPrefixChannelCount()} 个通道） · 帧长保持 4 字节对齐`;
       let icon = "check";
       if (errors.length) {
         status = "error";
@@ -1478,7 +1477,7 @@
       resetEditor();
       markClean();
       appendLog(`已载入配置${state.configPath ? `：${state.configPath}` : ""}`, "success");
-      showToast("配置已载入", `${state.config.wordCount} 个配置 Word，至少 ${minimumOutputChannelCount()} 个输出通道。`);
+      showToast("配置已载入", `已配置前 ${state.config.wordCount} 个 Word；实际通道数随帧长变化。`);
       render();
     } catch (error) {
       handleError("载入配置失败", error);

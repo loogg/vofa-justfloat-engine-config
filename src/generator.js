@@ -129,9 +129,6 @@ function migrateV1EngineName(config) {
 }
 
 function defaultDescriptions(config) {
-  const minimumPayloadBytes = Number.isInteger(config.wordCount)
-    ? config.wordCount * WORD_SIZE
-    : 0;
   const layout = Array.isArray(config.fields) ? descriptionLayout(config) : '';
   const example = Number.isInteger(config.wordCount) && config.wordCount > 0
     ? descriptorExample(config)
@@ -139,17 +136,17 @@ function defaultDescriptions(config) {
   const url = 'https://www.vofa.plus/docs/learning/dataengines/introduce';
   return {
     SimplifiedChinese: {
-      format: `${config.displayName} 接受变长小端帧：至少 ${config.wordCount} 个 4 字节数据字（${minimumPayloadBytes} 字节），随后是帧尾 00 00 80 7F。前 ${config.wordCount} 个 Word 按配置解析；未配置及后续 Word 沿用 JustFloat，分别输出一个 float 通道。${layout ? `\n${layout}` : ''}`,
+      format: `${config.displayName} 接受变长小端帧，数据区可包含任意数量的 4 字节 Word，随后是帧尾 00 00 80 7F。帧中实际存在的前 ${config.wordCount} 个 Word 按配置解析；未配置及后续 Word 沿用 JustFloat，分别输出一个 float 通道。通道数随实际帧长变化。${layout ? `\n${layout}` : ''}`,
       example,
       url,
     },
     TraditionalChinese: {
-      format: `${config.displayName} 接受可變長度小端幀：至少 ${config.wordCount} 個 4 位元組資料字（${minimumPayloadBytes} 位元組），隨後是幀尾 00 00 80 7F。前 ${config.wordCount} 個 Word 按配置解析；未配置及後續 Word 沿用 JustFloat，分別輸出一個 float 通道。${layout ? `\n${layout}` : ''}`,
+      format: `${config.displayName} 接受可變長度小端幀，資料區可包含任意數量的 4 位元組 Word，隨後是幀尾 00 00 80 7F。幀中實際存在的前 ${config.wordCount} 個 Word 按配置解析；未配置及後續 Word 沿用 JustFloat，分別輸出一個 float 通道。通道數隨實際幀長變化。${layout ? `\n${layout}` : ''}`,
       example,
       url,
     },
     English: {
-      format: `${config.displayName} accepts variable-length little-endian frames with at least ${config.wordCount} four-byte Words (${minimumPayloadBytes} bytes), followed by 00 00 80 7F. The first ${config.wordCount} Words use the configured layout; unconfigured and later Words retain JustFloat behavior and each emit one float channel.${layout ? `\n${layout}` : ''}`,
+      format: `${config.displayName} accepts variable-length little-endian frames containing any number of four-byte Words, followed by 00 00 80 7F. Configured parsing applies only to the first ${config.wordCount} Words that are actually present; unconfigured and later Words retain JustFloat behavior and each emit one float channel. Channel count follows the actual frame length.${layout ? `\n${layout}` : ''}`,
       example,
       url,
     },
@@ -773,8 +770,7 @@ function parserLines(config) {
 function processingFrameFunction(config) {
   return `bool ${config.className}::ProcessingFrame(char *data, int count, QVector<float> &dd)\n`
     + `{\n`
-    + `    const int minimumCount = (${config.wordCount} * 4) + 4;\n`
-    + `    if (data == nullptr || count < minimumCount || count % 4 != 0)\n`
+    + `    if (data == nullptr || count <= 0 || count % 4 != 0)\n`
     + `        return false;\n\n`
     + `    const unsigned char *bytes = reinterpret_cast<const unsigned char *>(data);\n`
     + `    const int payloadBytes = count - 4;\n`
@@ -866,14 +862,14 @@ function descriptionLayout(config) {
 }
 
 function descriptorExample(config) {
-  const minimumPayloadBytes = config.wordCount * WORD_SIZE;
+  const configuredPayloadBytes = config.wordCount * WORD_SIZE;
   return [
-    `unsigned char frame[${minimumPayloadBytes + FRAME_TAIL_SIZE}] = {0};`,
-    `/* Minimum frame: fill bytes 0..${minimumPayloadBytes - 1}; extra float Words may be inserted before the tail. */`,
-    `frame[${minimumPayloadBytes}] = 0x00;`,
-    `frame[${minimumPayloadBytes + 1}] = 0x00;`,
-    `frame[${minimumPayloadBytes + 2}] = 0x80;`,
-    `frame[${minimumPayloadBytes + 3}] = 0x7f;`,
+    `unsigned char frame[${configuredPayloadBytes + FRAME_TAIL_SIZE}] = {0};`,
+    `/* Example only: fewer configured Words or extra float Words may appear before the tail. */`,
+    `frame[${configuredPayloadBytes}] = 0x00;`,
+    `frame[${configuredPayloadBytes + 1}] = 0x00;`,
+    `frame[${configuredPayloadBytes + 2}] = 0x80;`,
+    `frame[${configuredPayloadBytes + 3}] = 0x7f;`,
     'write((char *)frame, sizeof(frame));',
   ].join('\n');
 }

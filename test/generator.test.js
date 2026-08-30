@@ -175,14 +175,14 @@ test('generates beside justfloat, preserves sibling shared paths, and emits exac
   assert.match(header, /class CustomFloat/);
   assert.match(header, /Q_PLUGIN_METADATA\(IID "VOFA\+\.Plugin\.CustomFloat"\)/);
   assert.doesNotMatch(header, /\bclass JustFloat\b/);
-  assert.match(source, /const int minimumCount = \(1 \* 4\) \+ 4;/);
-  assert.match(source, /count < minimumCount \|\| count % 4 != 0/);
+  assert.match(source, /data == nullptr \|\| count <= 0 \|\| count % 4 != 0/);
   assert.match(source, /for \(int offset = 0; offset < payloadBytes; offset \+= 4\)/);
   assert.match(source, /case 0:/);
   assert.match(source, /word >> 16/);
   assert.match(source, /word >> 31/);
   assert.match(source, /default:[\s\S]*std::memcpy\(&value, data \+ offset/);
   assert.doesNotMatch(source, /count != expectedCount/);
+  assert.doesNotMatch(source, /minimumCount/);
   assert.match(source, /CustomFloat::ProcessingDatas/);
   assert.match(source, /这是个图片前导帧/);
   assert.doesNotMatch(source, /JustFloat::/);

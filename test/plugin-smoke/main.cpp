@@ -81,14 +81,15 @@ int main(int argc, char *argv[])
     if (extendedValues.size() != expected.size() + 1 || !equals(extendedValues.last(), 2.5f))
         return fail(QStringLiteral("later Word did not fall back to float"), 12);
 
-    // The payload must still contain every configured Word before the frame tail.
-    char tooShortFrame[] = {
+    // A frame may end before any configured Word; only the matched prefix is emitted.
+    char tailOnlyFrame[] = {
         char(0x00), char(0x00), char(0x80), char(0x7F)
     };
-    engine->ProcessingDatas(tooShortFrame, int(sizeof(tooShortFrame)));
-    const QList<Frame> invalidFrames = engine->frame_list();
-    if (invalidFrames.size() != 1 || invalidFrames.first().is_valid_)
-        return fail(QStringLiteral("frame shorter than configured Words was accepted"), 13);
+    engine->ProcessingDatas(tailOnlyFrame, int(sizeof(tailOnlyFrame)));
+    const QList<Frame> shortFrames = engine->frame_list();
+    if (shortFrames.size() != 1 || !shortFrames.first().is_valid_
+            || !shortFrames.first().datas_.isEmpty())
+        return fail(QStringLiteral("short frame did not emit only its matched prefix"), 13);
 
     qInfo() << "custom engine smoke test passed";
     return 0;
