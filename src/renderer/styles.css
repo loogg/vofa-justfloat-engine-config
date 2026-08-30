@@ -804,6 +804,43 @@ select option {
   gap: 8px;
 }
 
+.description-sync-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 9px;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  background: var(--surface);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.description-sync-toggle:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.description-sync-toggle:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.description-sync-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.description-sync-toggle.is-manual {
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+}
+
 .description-language,
 .description-url {
   grid-column: 1 / -1;

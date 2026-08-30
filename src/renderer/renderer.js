@@ -91,7 +91,7 @@
     "dataengines-preview", "open-environment", "environment-status-icon", "environment-summary",
     "engine-name", "word-count", "word-count-minus", "word-count-plus", "frame-byte-count",
     "derived-target", "derived-class", "derived-dll", "derived-json", "engine-error", "stat-words",
-    "stat-fields", "stat-used", "layout-stat-words", "layout-stat-fields", "generate-descriptions", "description-tabs", "description-language-name", "description-format",
+    "stat-fields", "stat-used", "layout-stat-words", "layout-stat-fields", "generate-descriptions", "description-auto-sync", "description-sync-toggle", "description-sync-label", "description-tabs", "description-language-name", "description-format",
     "description-example", "description-url", "word-list", "word-list-count", "selected-word-label", "selection-summary",
     "bit-grid", "editor-mode", "editor-word", "field-name", "field-type", "field-offset", "offset-hint",
     "allocation-range", "allocation-size", "field-error", "commit-field", "delete-field", "reset-editor",
@@ -154,7 +154,7 @@
   }
 
   function createDefaultConfig() {
-    return {
+    const config = {
       version: CONFIG_VERSION,
       engineName: "Packed Float",
       wordCount: 4,
@@ -165,8 +165,11 @@
         bitOffset: 0,
         name: `ch${index}`
       })),
+      descriptionAutoSync: true,
       descriptions: defaultDescriptions()
     };
+    config.descriptions = generateDescriptionsFromLayout(config);
+    return config;
   }
 
   function generateDescriptionsFromLayout(config) {
@@ -332,6 +335,7 @@
         bitOffset,
         name: name.trim()
       })),
+      descriptionAutoSync: state.config.descriptionAutoSync === true,
       descriptions: Object.fromEntries(Object.keys(LANGUAGES).map((language) => [language, {
         format: rawString(state.config.descriptions[language]?.format),
         example: rawString(state.config.descriptions[language]?.example),
@@ -535,6 +539,7 @@
           name: field.name.trim()
         };
       }) : [],
+      descriptionAutoSync: envelope.descriptionAutoSync === true,
       descriptions: normalizeDescriptions(envelope.descriptions)
     };
     const errors = validateCandidate({
@@ -543,6 +548,7 @@
     });
     if (errors.length) throw new Error(`配置校验失败：${errors.slice(0, 3).join("；")}`);
     config.fields = sortedFields(config.fields);
+    if (config.descriptionAutoSync) config.descriptions = generateDescriptionsFromLayout(config);
     return config;
   }
 
@@ -626,6 +632,31 @@
       button.classList.toggle("is-active", active);
       button.setAttribute("aria-selected", String(active));
     });
+    renderDescriptionSyncState();
+  }
+
+  function renderDescriptionSyncState() {
+    const enabled = state.config.descriptionAutoSync === true;
+    dom["description-auto-sync"].checked = enabled;
+    dom["description-sync-label"].textContent = enabled ? "自动同步" : "手动编辑";
+    dom["description-sync-toggle"].classList.toggle("is-manual", !enabled);
+    dom["description-sync-toggle"].title = enabled
+      ? "引擎名、Word 或通道布局变化时自动刷新三语描述"
+      : "手动描述受保护；勾选后将根据当前布局重新生成";
+  }
+
+  function refreshDescriptionsFromLayout(options = {}) {
+    if (!options.force && state.config.descriptionAutoSync !== true) return false;
+    state.config.descriptions = generateDescriptionsFromLayout(state.config);
+    if (options.render !== false) renderDescriptionEditor();
+    return true;
+  }
+
+  function pauseDescriptionAutoSync() {
+    if (state.config.descriptionAutoSync !== true) return;
+    state.config.descriptionAutoSync = false;
+    renderDescriptionSyncState();
+    appendLog("已切换为手动 JSON 描述；后续布局变化不会覆盖当前内容。", "info");
   }
 
   function showConfirmDialog({ title, message, detail = "", confirmLabel = "继续", tone = "default" }) {
@@ -648,19 +679,24 @@
 
   async function regenerateDescriptions() {
     if (state.busy) return;
-    const confirmed = await showConfirmDialog({
-      title: "根据布局生成三语描述",
-      message: "将覆盖简体中文、繁體中文和 English 的 format 与 example。",
-      detail: "描述只根据当前 Word、字段类型和位置在本机生成，不会上传配置或调用在线翻译服务。",
-      confirmLabel: "生成三语",
-      tone: "warning"
-    });
-    if (!confirmed) return;
-    state.config.descriptions = generateDescriptionsFromLayout(state.config);
+    if (state.config.descriptionAutoSync !== true) {
+      const confirmed = await showConfirmDialog({
+        title: "启用三语描述自动同步",
+        message: "将覆盖当前三种语言的 format 与 example，并在布局变化时继续自动刷新。",
+        detail: "描述只根据当前 Word、字段类型和位置在本机生成，不会上传配置或调用在线翻译服务。",
+        confirmLabel: "启用并刷新",
+        tone: "warning"
+      });
+      if (!confirmed) {
+        renderDescriptionSyncState();
+        return;
+      }
+    }
+    state.config.descriptionAutoSync = true;
+    refreshDescriptionsFromLayout({ force: true });
     markDirty();
-    renderDescriptionEditor();
-    appendLog("已根据当前布局生成三语 JSON 描述。", "success");
-    showToast("三语描述已生成", `${state.config.fields.length} 个通道，${state.config.wordCount} 个 Word。`, "success");
+    appendLog("已根据当前布局刷新三语 JSON 描述，并启用自动同步。", "success");
+    showToast("三语描述已刷新", `${state.config.fields.length} 个通道，${state.config.wordCount} 个 Word；自动同步已开启。`, "success");
   }
 
   function renderWordList() {
@@ -1175,6 +1211,7 @@
       appendLog(`已添加 ${name}：Word ${state.selectedWord} / ${formatRange(bitOffset, meta.width)} / ${type}`, "info");
     }
     state.config.fields = sortedFields();
+    refreshDescriptionsFromLayout();
     markDirty();
     resetEditor({ preserveType: true });
     render();
@@ -1192,6 +1229,7 @@
     });
     if (!confirmed) return;
     state.config.fields = state.config.fields.filter((field) => field._uiId !== editing._uiId);
+    refreshDescriptionsFromLayout();
     appendLog(`已删除字段 ${editing.name}。`, "warning");
     markDirty();
     resetEditor({ preserveType: true });
@@ -1223,6 +1261,7 @@
     state.collapsedWords = new Set([...state.collapsedWords].filter((wordIndex) => wordIndex < next));
     dom["word-count"].value = String(next);
     if (state.selectedWord >= next) state.selectedWord = next - 1;
+    refreshDescriptionsFromLayout();
     markDirty();
     resetEditor({ preserveType: true });
     render();
@@ -1244,6 +1283,7 @@
     state.config.fields = Array.from({ length: state.config.wordCount }, (_, wordIndex) => ({
       _uiId: nextUiId(), wordIndex, type: "float", bitOffset: 0, name: `ch${wordIndex}`
     }));
+    refreshDescriptionsFromLayout();
     markDirty();
     resetEditor();
     appendLog("已恢复与 JustFloat 一致的全 Float 布局。", "warning");
@@ -1262,6 +1302,7 @@
     });
     if (!confirmed) return;
     state.config.fields = state.config.fields.filter((field) => field.wordIndex !== state.selectedWord);
+    refreshDescriptionsFromLayout();
     markDirty();
     resetEditor();
     appendLog(`已清空 Word ${state.selectedWord}。`, "warning");
@@ -1724,6 +1765,7 @@
 
     dom["engine-name"].addEventListener("input", (event) => {
       state.config.engineName = event.target.value;
+      refreshDescriptionsFromLayout();
       markDirty();
       renderDerivedNames();
       renderEnvironmentSummary();
@@ -1740,8 +1782,19 @@
       renderDescriptionEditor();
     });
     dom["generate-descriptions"].addEventListener("click", regenerateDescriptions);
+    dom["description-auto-sync"].addEventListener("change", async (event) => {
+      if (!event.target.checked) {
+        state.config.descriptionAutoSync = false;
+        markDirty();
+        renderDescriptionSyncState();
+        appendLog("已暂停 JSON 描述自动同步。", "info");
+        return;
+      }
+      await regenerateDescriptions();
+    });
     [["description-format", "format"], ["description-example", "example"], ["description-url", "url"]].forEach(([id, key]) => {
       dom[id].addEventListener("input", (event) => {
+        pauseDescriptionAutoSync();
         state.config.descriptions[state.activeLanguage][key] = event.target.value;
         markDirty();
         renderValidation();

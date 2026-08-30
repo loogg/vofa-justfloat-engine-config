@@ -108,9 +108,13 @@
 
             <section class="tool-section" id="description-section">
               <div class="section-heading">
-                <div><h2>JSON 描述</h2><p>内容将原样写入生成的三语描述文件。</p></div>
+                <div><h2>JSON 描述</h2><p>自动模式随引擎名、Word 和通道布局刷新；手动编辑后会暂停，避免覆盖你的内容。</p></div>
                 <div class="description-actions">
-                  <button class="button button-subtle" id="generate-descriptions" type="button"><span class="icon icon-translate" aria-hidden="true"></span>根据布局生成三语</button>
+                  <label class="description-sync-toggle" id="description-sync-toggle" title="布局变化时自动刷新三种语言的 format 和 example">
+                    <input id="description-auto-sync" type="checkbox" checked />
+                    <span id="description-sync-label">自动同步</span>
+                  </label>
+                  <button class="button button-subtle" id="generate-descriptions" type="button"><span class="icon icon-translate" aria-hidden="true"></span>立即刷新三语</button>
                   <div class="language-tabs" id="description-tabs" role="tablist" aria-label="描述语言">
                     <button class="is-active" type="button" role="tab" aria-selected="true" data-language="SimplifiedChinese">简体中文</button>
                     <button type="button" role="tab" aria-selected="false" data-language="TraditionalChinese">繁體中文</button>

@@ -4,6 +4,7 @@ const childProcess = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { TextDecoder } = require('util');
 
 const CONFIG_VERSION = 2;
 const WORD_SIZE = 4;
@@ -192,6 +193,7 @@ function normalizeConfig(config) {
     ...names,
     wordCount: config.wordCount,
     fields,
+    descriptionAutoSync: config.descriptionAutoSync === true,
   };
   const defaults = defaultDescriptions(base);
   const sourceDescriptions = isPlainObject(config.descriptions)
@@ -228,6 +230,11 @@ function validateConfig(config) {
   if (!Number.isInteger(normalized.version)
       || normalized.version !== CONFIG_VERSION) {
     errors.push(`version must be ${CONFIG_VERSION}.`);
+  }
+
+  if (config.descriptionAutoSync !== undefined
+      && typeof config.descriptionAutoSync !== 'boolean') {
+    errors.push('descriptionAutoSync must be a boolean when provided.');
   }
 
   if (config.descriptions !== undefined && !isPlainObject(config.descriptions)) {
@@ -1491,6 +1498,40 @@ function quoteForCmd(value) {
   return `"${text}"`;
 }
 
+function decodeBuildOutputBuffer(value) {
+  const buffer = Buffer.isBuffer(value) ? value : Buffer.from(value || '');
+  if (buffer.length === 0) return '';
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+  } catch (_) {
+    return new TextDecoder('gb18030').decode(buffer);
+  }
+}
+
+function createBuildOutputDecoder(onText) {
+  let pending = Buffer.alloc(0);
+  const emit = (buffer) => {
+    if (buffer.length > 0) onText(decodeBuildOutputBuffer(buffer));
+  };
+  return {
+    push(chunk) {
+      const incoming = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk || '');
+      if (incoming.length === 0) return;
+      pending = pending.length === 0 ? incoming : Buffer.concat([pending, incoming]);
+      let newlineIndex = pending.indexOf(0x0a);
+      while (newlineIndex !== -1) {
+        emit(pending.subarray(0, newlineIndex + 1));
+        pending = pending.subarray(newlineIndex + 1);
+        newlineIndex = pending.indexOf(0x0a);
+      }
+    },
+    end() {
+      emit(pending);
+      pending = Buffer.alloc(0);
+    },
+  };
+}
+
 function runBuildCommand(environment, projectFile, buildDirectory, onOutput) {
   const steps = [
     `call ${quoteForCmd(environment.vcVarsPath)} x64 -vcvars_ver=14.16`,
@@ -1524,8 +1565,7 @@ function runBuildCommand(environment, projectFile, buildDirectory, onOutput) {
     );
     let output = '';
 
-    const forward = (chunk, stream) => {
-      const text = chunk.toString();
+    const forward = (text, stream) => {
       output += text;
       if (typeof onOutput === 'function') {
         try {
@@ -1535,12 +1575,16 @@ function runBuildCommand(environment, projectFile, buildDirectory, onOutput) {
         }
       }
     };
-    child.stdout.on('data', (chunk) => forward(chunk, 'stdout'));
-    child.stderr.on('data', (chunk) => forward(chunk, 'stderr'));
+    const stdoutDecoder = createBuildOutputDecoder((text) => forward(text, 'stdout'));
+    const stderrDecoder = createBuildOutputDecoder((text) => forward(text, 'stderr'));
+    child.stdout.on('data', (chunk) => stdoutDecoder.push(chunk));
+    child.stderr.on('data', (chunk) => stderrDecoder.push(chunk));
     child.on('error', (error) => {
       reject(createError('BUILD_START_FAILED', `Could not start the build: ${error.message}`, { output }));
     });
     child.on('close', (exitCode) => {
+      stdoutDecoder.end();
+      stderrDecoder.end();
       if (exitCode === 0) {
         resolve({ command, scriptFile, steps, exitCode, output });
       } else {
@@ -1664,4 +1708,6 @@ module.exports = {
   getEnvironment,
   detectEnvironment,
   inspectRepositoryLayout,
+  decodeBuildOutputBuffer,
+  createBuildOutputDecoder,
 };

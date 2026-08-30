@@ -271,6 +271,7 @@ function persistableConfig(config) {
   return {
     version: config.version,
     engineName: config.engineName,
+    descriptionAutoSync: config.descriptionAutoSync === true,
     descriptions: config.descriptions,
     wordCount: config.wordCount,
     fields: config.fields

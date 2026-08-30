@@ -8,6 +8,8 @@ const test = require('node:test');
 
 const {
   buildEngine,
+  createBuildOutputDecoder,
+  decodeBuildOutputBuffer,
   deriveEngineNames,
   generateEngine,
   getEnvironment,
@@ -71,6 +73,7 @@ test('derives display, target, and C++ class names from one engine name', () => 
 
 test('normalizes schema v2 without mutating input or description text', () => {
   const input = configFor('  Custom Float  ');
+  input.descriptionAutoSync = true;
   input.fields = [{ wordIndex: 0, type: ' UINT8 ', bitOffset: 0, name: ' state ' }];
   input.descriptions.English.format = '  keep whitespace exactly  ';
   const normalized = normalizeConfig(input);
@@ -79,10 +82,31 @@ test('normalizes schema v2 without mutating input or description text', () => {
   assert.equal(normalized.engineName, 'Custom Float');
   assert.equal(normalized.targetName, 'customfloat');
   assert.equal(normalized.className, 'CustomFloat');
+  assert.equal(normalized.descriptionAutoSync, true);
   assert.equal(normalized.fields[0].type, 'uint8');
   assert.equal(normalized.fields[0].name, 'state');
   assert.equal(normalized.descriptions.English.format, '  keep whitespace exactly  ');
   assert.equal(input.fields[0].type, ' UINT8 ');
+});
+
+test('decodes UTF-8 and fragmented Windows GB18030 build output without mojibake', () => {
+  assert.equal(
+    decodeBuildOutputBuffer(Buffer.from('Release 构建完成。', 'utf8')),
+    'Release 构建完成。',
+  );
+
+  const chineseLinkerLine = Buffer.concat([
+    Buffer.from('D5FDD4DAB4B4BDA8BFE2', 'hex'),
+    Buffer.from(' .\\mlw.lib\r\n', 'ascii'),
+  ]);
+  const decoded = [];
+  const decoder = createBuildOutputDecoder((text) => decoded.push(text));
+  decoder.push(chineseLinkerLine.subarray(0, 3));
+  decoder.push(chineseLinkerLine.subarray(3, 9));
+  decoder.push(chineseLinkerLine.subarray(9));
+  decoder.end();
+
+  assert.equal(decoded.join(''), '正在创建库 .\\mlw.lib\r\n');
 });
 
 test('migrates a v1 configuration to schema v2 and supplies descriptions', () => {
