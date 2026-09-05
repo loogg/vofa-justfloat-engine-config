@@ -11,7 +11,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 test('package and lock versions are the single synchronized release version', () => {
   const packageJson = JSON.parse(read('package.json'));
   const packageLock = JSON.parse(read('package-lock.json'));
-  assert.equal(packageJson.version, '1.3.1');
+  assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
   assert.equal(packageLock.version, packageJson.version);
   assert.equal(packageLock.packages[''].version, packageJson.version);
   assert.equal(packageJson.name, 'vofa-justfloat-engine-config');

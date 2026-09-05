@@ -56,6 +56,7 @@ const selectablePaths = Object.freeze({
 
 let mainWindow = null;
 let buildInProgress = false;
+let configLocations = null;
 
 function sameLocalPath(left, right) {
   const normalize = (value) => path.resolve(value).toLowerCase();
@@ -278,6 +279,74 @@ function persistableConfig(config) {
   };
 }
 
+function unwrapConfigDocument(document) {
+  assertSafeConfigPayload(document);
+  if (Object.hasOwn(document, 'generator')) {
+    if (document.generator !== 'vofa-justfloat-engine-builder'
+        || ![1, 2].includes(document.version)
+        || !isPlainObject(document.config)) {
+      throw new TypeError('生成器配置文件无效：缺少有效的 config 配置或版本不受支持。');
+    }
+    return document.config;
+  }
+  if (!Object.hasOwn(document, 'fields')
+      && ['SimplifiedChinese', 'TraditionalChinese', 'English'].some((key) => Object.hasOwn(document, key))) {
+    throw new TypeError('这是 VOFA+ 插件描述文件，不包含通道配置。请选择保存的配置 JSON，或源码目录中的 .vofa-engine-builder.json。');
+  }
+  return document;
+}
+
+function configLocationsFile() {
+  return path.join(app.getPath('userData'), 'config-dialog-locations.json');
+}
+
+function rememberedConfigLocations() {
+  if (configLocations === null) {
+    configLocations = new Map();
+    try {
+      const filePath = configLocationsFile();
+      if (fs.statSync(filePath).size <= maxConfigBytes) {
+        const saved = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (isPlainObject(saved)) configLocations = new Map(Object.entries(saved));
+      }
+    } catch (_error) {
+      // Missing or damaged preferences must not prevent opening a configuration.
+    }
+  }
+  return configLocations;
+}
+
+function configLocationKey(repoRoot) {
+  return repoRoot ? path.resolve(repoRoot).toLowerCase() : '';
+}
+
+function existingDirectory(directory) {
+  if (typeof directory !== 'string' || !directory || directory.includes('\0')) return false;
+  try {
+    return fs.statSync(directory).isDirectory();
+  } catch (_error) {
+    return false;
+  }
+}
+
+function configDialogDirectory(repoRoot) {
+  const remembered = rememberedConfigLocations().get(configLocationKey(repoRoot));
+  const dataEnginesDirectory = repoRoot ? path.join(repoRoot, 'dataengines') : null;
+  return [remembered, dataEnginesDirectory, app.getPath('documents')].find(existingDirectory)
+    || app.getPath('home');
+}
+
+async function rememberConfigDirectory(repoRoot, filePath) {
+  const locations = rememberedConfigLocations();
+  locations.set(configLocationKey(repoRoot), path.dirname(filePath));
+  try {
+    await fs.promises.writeFile(configLocationsFile(), `${JSON.stringify(Object.fromEntries(locations), null, 2)}\n`, 'utf8');
+  } catch (error) {
+    // A successful load/save stays successful even if preferences are read-only.
+    console.warn(`Cannot remember configuration directory: ${error.message}`);
+  }
+}
+
 async function confirmLegacyArtifactReplacement(error) {
   if (!error || error.code !== 'OUTPUT_EXISTS' || !error.details?.requiresConfirmation) {
     throw error;
@@ -311,10 +380,12 @@ function registerIpcHandlers() {
     return getEnvironment(environmentScanRequest(repoRoot));
   });
 
-  registerHandler(channels.openConfig, 0, async () => {
+  registerHandler(channels.openConfig, 1, async (_event, selectedRepoRoot) => {
+    const repoRoot = optionalRepoRoot(selectedRepoRoot);
     const result = await dialog.showOpenDialog(mainWindow, {
       title: '打开数据引擎配置',
-      properties: ['openFile', 'dontAddToRecent'],
+      defaultPath: configDialogDirectory(repoRoot),
+      properties: ['openFile', 'showHiddenFiles', 'dontAddToRecent'],
       filters: [
         { name: 'JSON configuration', extensions: ['json'] },
         { name: 'All files', extensions: ['*'] }
@@ -338,16 +409,19 @@ function registerIpcHandlers() {
       throw new Error(`Cannot read configuration: ${error.message}`);
     }
 
-    return { filePath, config: await prepareConfig(config) };
+    const normalized = await prepareConfig(unwrapConfigDocument(config));
+    await rememberConfigDirectory(repoRoot, filePath);
+    return { filePath, config: normalized };
   });
 
-  registerHandler(channels.saveConfig, 1, async (_event, config) => {
+  registerHandler(channels.saveConfig, 2, async (_event, config, selectedRepoRoot) => {
+    const repoRoot = optionalRepoRoot(selectedRepoRoot);
     const normalized = await prepareConfig(config);
     const safeTargetName = String(normalized.targetName || 'customengine')
       .replace(/[^A-Za-z0-9_-]/g, '_');
     const result = await dialog.showSaveDialog(mainWindow, {
       title: '保存数据引擎配置',
-      defaultPath: `${safeTargetName}.json`,
+      defaultPath: path.join(configDialogDirectory(repoRoot), `${safeTargetName}.json`),
       filters: [{ name: 'JSON configuration', extensions: ['json'] }],
       properties: ['dontAddToRecent']
     });
@@ -363,6 +437,7 @@ function registerIpcHandlers() {
       encoding: 'utf8',
       flag: 'w'
     });
+    await rememberConfigDirectory(repoRoot, filePath);
     return { filePath };
   });
 

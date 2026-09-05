@@ -16,8 +16,8 @@ const channels = Object.freeze({
 const engineApi = Object.freeze({
   getEnvironment: (repoRootOrEnvironment) =>
     ipcRenderer.invoke(channels.getEnvironment, repoRootOrEnvironment),
-  openConfig: () => ipcRenderer.invoke(channels.openConfig),
-  saveConfig: (config) => ipcRenderer.invoke(channels.saveConfig, config),
+  openConfig: (repoRoot) => ipcRenderer.invoke(channels.openConfig, repoRoot),
+  saveConfig: (config, repoRoot) => ipcRenderer.invoke(channels.saveConfig, config, repoRoot),
   selectPath: (kind) => ipcRenderer.invoke(channels.selectPath, kind),
   generate: (config, environment) =>
     ipcRenderer.invoke(channels.generate, config, environment),

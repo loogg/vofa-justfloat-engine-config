@@ -1528,7 +1528,7 @@
       if (!confirmed) return;
     }
     try {
-      const result = await api.openConfig();
+      const result = await api.openConfig(state.environment.repoRoot);
       if (!result) return;
       state.config = normalizeConfig(result);
       state.configPath = stringValue(result.filePath);
@@ -1555,7 +1555,7 @@
       return;
     }
     try {
-      const result = await api.saveConfig(publicConfig());
+      const result = await api.saveConfig(publicConfig(), state.environment.repoRoot);
       if (!result) return;
       state.configPath = (typeof result === "string" ? result.trim() : stringValue(result.filePath)) || state.configPath;
       markClean();

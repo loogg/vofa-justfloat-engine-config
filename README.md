@@ -42,7 +42,11 @@ dataengines/generated/<targetName>.json
 dataengines/generated/win64/<targetName>.dll
 ```
 
-配置可以保存为普通 JSON 文件，之后再从界面载入。构建命令的实时输出显示在界面的构建日志区域；日志会逐行识别 UTF-8 与 Windows GB18030/GBK 输出，避免中文 MSVC 链接信息乱码。
+配置可以保存为普通 JSON 文件，之后再从界面载入；也可以直接载入生成或构建时写入 `dataengines/<targetName>/.vofa-engine-builder.json` 的配置快照。`dataengines/generated/<targetName>.json` 仅供 VOFA+ 显示插件说明，不包含通道布局，不能作为配置载入。
+
+载入和保存对话框首次默认打开当前所选仓库的 `dataengines` 目录，之后按仓库记住最近一次成功载入或保存的文件夹，重启后仍然有效。切换仓库时使用该仓库自己的记录；记录目录不存在时退回 `dataengines`。没有可用记录、且未选择仓库或其 `dataengines` 不可用时，使用“文档”目录。
+
+构建命令的实时输出显示在界面的构建日志区域；日志会逐行识别 UTF-8 与 Windows GB18030/GBK 输出，避免中文 MSVC 链接信息乱码。
 
 ## 开发检查
 
