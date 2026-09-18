@@ -26,6 +26,7 @@ test('renderer uses Fluent confirmation, Word tree, and offline three-language g
   assert.match(html, /id="confirm-dialog"/);
   assert.match(html, /id="generate-descriptions"/);
   assert.match(html, /id="description-auto-sync"/);
+  assert.match(html, /id="delete-word"/);
   assert.match(html, /role="treegrid"/);
   assert.match(html, /option value="int8"/);
   assert.match(html, /option value="int16"/);
@@ -38,6 +39,8 @@ test('renderer uses Fluent confirmation, Word tree, and offline three-language g
   assert.match(renderer, /function pauseDescriptionAutoSync/);
   assert.match(renderer, /function configuredOutputs/);
   assert.match(renderer, /async function setWordCount/);
+  assert.match(renderer, /async function insertWordAt/);
+  assert.match(renderer, /async function deleteWordAt/);
   assert.match(renderer, /wordCountChangePending/);
   assert.match(renderer, /缩减并删除字段/);
   assert.match(renderer, /fieldsToRemove/);
@@ -49,6 +52,9 @@ test('renderer uses Fluent confirmation, Word tree, and offline three-language g
   assert.match(renderer, /channel-tree-row/);
   assert.match(styles, /\.confirm-dialog/);
   assert.match(styles, /\.word-tree-toggle/);
+  assert.match(styles, /\.word-gap-insert/);
+  assert.match(styles, /\.byte-field-label/);
+  assert.match(styles, /\.table-wrap/);
 });
 
 test('tag workflow publishes setup and portable zip but not the portable folder', () => {

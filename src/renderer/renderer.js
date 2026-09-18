@@ -116,7 +116,7 @@
     "description-example", "description-url", "word-list", "word-list-count", "selected-word-label", "selection-summary",
     "bit-grid", "editor-mode", "editor-word", "field-name", "field-type", "field-offset", "offset-hint",
     "allocation-range", "allocation-size", "field-error", "commit-field", "delete-field", "reset-editor",
-    "field-editor", "fill-floats", "clear-word", "channel-sort", "channel-count", "channel-table-body",
+    "field-editor", "fill-floats", "clear-word", "delete-word", "channel-sort", "channel-count", "channel-table-body",
     "empty-table", "source-path", "generated-path", "kit-badge", "open-generated-inline", "log-output",
     "log-state", "clear-log", "dock-icon", "dock-title", "dock-detail", "open-generated",
     "generate-only", "generate-build", "environment-dialog", "environment-form", "environment-overview",
@@ -795,6 +795,21 @@
       stats.className = "word-item-stats";
       stats.textContent = fields.length ? `${fields.length} 个字段` : "默认 float";
       top.append(title, stats);
+
+      if (state.config.wordCount > 1) {
+        const deleteBtn = document.createElement("button");
+        deleteBtn.type = "button";
+        deleteBtn.className = "word-item-delete";
+        deleteBtn.setAttribute("aria-label", `删除 Word ${wordIndex}`);
+        deleteBtn.title = `删除 Word ${wordIndex}`;
+        deleteBtn.dataset.deleteWord = String(wordIndex);
+        const delIcon = document.createElement("span");
+        delIcon.className = "icon icon-dismiss";
+        delIcon.setAttribute("aria-hidden", "true");
+        deleteBtn.append(delIcon);
+        top.append(deleteBtn);
+      }
+
       const usage = document.createElement("span");
       usage.className = "word-item-usage";
       usage.textContent = fields.length ? `已用 ${usedBits}/32 bits` : "帧包含时 · float";
@@ -814,6 +829,27 @@
       }
       button.append(top, usage, bar);
       list.append(button);
+
+      const gap = document.createElement("div");
+      gap.className = "word-gap-insert";
+      const gapLine = document.createElement("span");
+      gapLine.className = "word-gap-line";
+      const gapBtn = document.createElement("button");
+      gapBtn.type = "button";
+      gapBtn.className = "word-gap-button";
+      gapBtn.dataset.insertIndex = String(wordIndex + 1);
+      gapBtn.setAttribute("aria-label", `在 Word ${wordIndex} 后插入新 Word`);
+      gapBtn.title = `在 Word ${wordIndex} 后插入新 Word`;
+      if (state.config.wordCount >= MAX_WORDS) {
+        gapBtn.disabled = true;
+        gapBtn.title = `已达到最大 Word 数量 (${MAX_WORDS})`;
+      }
+      const addIcon = document.createElement("span");
+      addIcon.className = "icon icon-add";
+      addIcon.setAttribute("aria-hidden", "true");
+      gapBtn.append(addIcon);
+      gap.append(gapLine, gapBtn);
+      list.append(gap);
     }
   }
 
@@ -827,7 +863,8 @@
       const selectedChannel = outputIndexById.get(selectedField._uiId);
       dom["selection-summary"].classList.remove("is-fallback");
       dom["selection-summary"].hidden = false;
-      dom["selection-summary"].textContent = `已选 ch${selectedChannel} · ${selectedField.type} · ${formatStorageSize(typeWidth(selectedField.type))}`;
+      const fieldNameSuffix = selectedField.name?.trim() ? ` (${selectedField.name.trim()})` : "";
+      dom["selection-summary"].textContent = `已选 ch${selectedChannel}${fieldNameSuffix} · ${selectedField.type} · ${formatStorageSize(typeWidth(selectedField.type))}`;
       applyChannelPresentation(dom["selection-summary"], selectedField._uiId, selectedChannel);
     } else if (!state.config.fields.some((field) => field.wordIndex === state.selectedWord)) {
       const fallbackChannel = configuredOutputs().findIndex((output) => output.kind === "fallback" && output.wordIndex === state.selectedWord);
@@ -855,6 +892,9 @@
       labelRange.textContent = `bits ${byteIndex * 8}–${byteIndex * 8 + 7}`;
       label.append(labelName, labelRange);
       row.append(label);
+
+      const firstRowFields = [];
+
       for (let localBit = 7; localBit >= 0; localBit -= 1) {
         const bit = byteIndex * 8 + localBit;
         const field = fieldAtBit(state.selectedWord, bit);
@@ -878,18 +918,15 @@
           if (byteIndex === Math.floor(fieldEnd / 8)) cell.classList.add("region-bottom");
           if (bit === visibleEnd) cell.classList.add("region-left");
           if (bit === visibleStart) cell.classList.add("region-right");
-          // Repeat the ch label once per occupied byte row. This makes a 32-bit
-          // field read as one four-byte region instead of one labelled byte.
-          const labelBit = visibleStart + Math.floor((visibleEnd - visibleStart) / 2);
-          if (bit === labelBit) {
-            cell.classList.add("has-channel-label");
-            const cellName = document.createElement("span");
-            cellName.className = "cell-name";
-            cellName.textContent = `ch${channelIndex}`;
-            cell.append(cellName);
+
+          const isFirstByteOfField = byteIndex === Math.floor(fieldStart / 8);
+          if (isFirstByteOfField && !firstRowFields.some((item) => item.field._uiId === field._uiId)) {
+            firstRowFields.push({ field, channelIndex, visibleStart, visibleEnd, meta });
           }
-          cell.title = `ch${channelIndex} · Word ${field.wordIndex} · ${field.name} · ${field.type} · ${formatStorageSize(meta.width)} · ${formatRange(field.bitOffset, meta.width)}`;
-          cell.setAttribute("aria-label", `编辑 ch${channelIndex}，Word ${field.wordIndex}，${field.type}，${formatStorageSize(meta.width)}`);
+
+          const displayName = field.name?.trim() ? field.name.trim() : `ch${channelIndex}`;
+          cell.title = `ch${channelIndex} · ${field.name || "未命名"} · Word ${field.wordIndex} · ${field.type} · ${formatStorageSize(meta.width)} · ${formatRange(field.bitOffset, meta.width)}`;
+          cell.setAttribute("aria-label", `编辑 ${displayName} (ch${channelIndex})，Word ${field.wordIndex}，${field.type}，${formatStorageSize(meta.width)}`);
         } else {
           cell.title = `空白 Bit ${bit}，点击选择位置`;
           cell.setAttribute("aria-label", `选择空白 Bit ${bit}`);
@@ -900,6 +937,24 @@
         cell.append(bitNumber);
         row.append(cell);
       }
+
+      for (const item of firstRowFields) {
+        const { field, channelIndex, visibleStart, visibleEnd } = item;
+        const displayName = field.name?.trim() ? field.name.trim() : `ch${channelIndex}`;
+        const spanLabel = document.createElement("div");
+        spanLabel.className = `byte-field-label${field._uiId === state.editingId ? " is-selected-field" : ""}`;
+        applyChannelPresentation(spanLabel, field._uiId, channelIndex);
+        const colStart = 9 - (visibleEnd - byteIndex * 8);
+        const colEnd = 9 - (visibleStart - byteIndex * 8) + 1;
+        spanLabel.style.gridColumn = `${colStart} / ${colEnd}`;
+
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "field-label-text";
+        nameSpan.textContent = displayName;
+        spanLabel.append(nameSpan);
+        row.append(spanLabel);
+      }
+
       grid.append(row);
     }
   }
@@ -1285,6 +1340,7 @@
     dom["save-config"].disabled = state.busy || !api;
     dom["fill-floats"].disabled = state.busy;
     dom["clear-word"].disabled = state.busy;
+    dom["delete-word"].disabled = state.busy || state.wordCountChangePending || state.config.wordCount <= 1;
     dom["browse-repo"].disabled = state.busy || !api;
     const wordCountBlocked = state.busy || state.wordCountChangePending;
     dom["word-count"].disabled = wordCountBlocked;
@@ -1493,6 +1549,89 @@
     markDirty();
     resetEditor();
     appendLog(`已清空 Word ${state.selectedWord} 的自定义字段；该 Word 将按 float 输出。`, "warning");
+    render();
+  }
+
+  async function insertWordAt(insertIndex) {
+    if (state.busy || state.wordCountChangePending) return;
+    if (state.config.wordCount >= MAX_WORDS) {
+      showToast("配置 Word 数量已达上限", `最多支持 ${MAX_WORDS} 个 Word。`, "warning");
+      return;
+    }
+    const target = Math.max(0, Math.min(Number(insertIndex), state.config.wordCount));
+    const current = state.config.wordCount;
+    state.config.fields.forEach((field) => {
+      if (field.wordIndex >= target) {
+        field.wordIndex += 1;
+      }
+    });
+    state.collapsedWords = new Set(
+      [...state.collapsedWords].map((idx) => (idx >= target ? idx + 1 : idx))
+    );
+    state.config.wordCount = current + 1;
+    state.selectedWord = target;
+    dom["word-count"].value = String(state.config.wordCount);
+    refreshDescriptionsFromLayout();
+    markDirty();
+    resetEditor({ preserveType: true });
+    appendLog(`已在位置 Word ${target} 插入新 Word，配置 Word 总数增至 ${state.config.wordCount}。`, "info");
+    showToast("已插入 Word", `Word ${target} 已添加，总计 ${state.config.wordCount} 个 Word。`, "success");
+    render();
+  }
+
+  async function deleteWordAt(targetIndex) {
+    if (state.busy || state.wordCountChangePending) return;
+    if (state.config.wordCount <= 1) {
+      showToast("无法删除 Word", "至少需要保留 1 个 Word。", "warning");
+      return;
+    }
+    const target = Number(targetIndex);
+    if (!Number.isInteger(target) || target < 0 || target >= state.config.wordCount) return;
+    const current = state.config.wordCount;
+    const fieldsInWord = state.config.fields.filter((field) => field.wordIndex === target);
+    if (fieldsInWord.length > 0) {
+      state.wordCountChangePending = true;
+      renderValidation();
+      let confirmed = false;
+      try {
+        confirmed = await showConfirmDialog({
+          title: `删除 Word ${target}？`,
+          message: `将删除 Word ${target} 及其中的 ${fieldsInWord.length} 个字段。`,
+          detail: target < current - 1
+            ? `删除后，后续 Word 将前移（原 Word ${target + 1}–${current - 1} 变为 Word ${target}–${current - 2}），Word 总数缩减为 ${current - 1}。`
+            : `Word 总数将缩减为 ${current - 1}。`,
+          confirmLabel: "确认删除",
+          tone: "danger"
+        });
+      } finally {
+        state.wordCountChangePending = false;
+        renderValidation();
+      }
+      if (!confirmed) return;
+    }
+    state.config.fields = state.config.fields.filter((field) => field.wordIndex !== target);
+    state.config.fields.forEach((field) => {
+      if (field.wordIndex > target) {
+        field.wordIndex -= 1;
+      }
+    });
+    state.collapsedWords = new Set(
+      [...state.collapsedWords]
+        .filter((idx) => idx !== target)
+        .map((idx) => (idx > target ? idx - 1 : idx))
+    );
+    state.config.wordCount = current - 1;
+    state.selectedWord = Math.max(0, Math.min(target, state.config.wordCount - 1));
+    dom["word-count"].value = String(state.config.wordCount);
+    refreshDescriptionsFromLayout();
+    markDirty();
+    resetEditor({ preserveType: true });
+    if (fieldsInWord.length > 0) {
+      appendLog(`已删除 Word ${target} 及其 ${fieldsInWord.length} 个字段，配置 Word 数调整为 ${state.config.wordCount}。`, "warning");
+    } else {
+      appendLog(`已删除空 Word ${target}，配置 Word 数调整为 ${state.config.wordCount}。`, "info");
+    }
+    showToast("已删除 Word", `已移除 Word ${target}，剩余 ${state.config.wordCount} 个 Word。`, "info");
     render();
   }
 
@@ -2000,8 +2139,29 @@
     });
 
     dom["word-list"].addEventListener("click", (event) => {
+      const insertBtn = event.target.closest("[data-insert-index]");
+      if (insertBtn) {
+        event.stopPropagation();
+        void insertWordAt(Number(insertBtn.dataset.insertIndex));
+        return;
+      }
+      const deleteBtn = event.target.closest("[data-delete-word]");
+      if (deleteBtn) {
+        event.stopPropagation();
+        void deleteWordAt(Number(deleteBtn.dataset.deleteWord));
+        return;
+      }
       const button = event.target.closest("[data-word-index]");
       if (button) selectWord(Number(button.dataset.wordIndex));
+    });
+    dom["word-list"].addEventListener("keydown", (event) => {
+      if ((event.key === "Delete" || event.key === "Backspace") && !state.busy) {
+        const wordBtn = event.target.closest("[data-word-index]");
+        if (wordBtn) {
+          event.preventDefault();
+          void deleteWordAt(Number(wordBtn.dataset.wordIndex));
+        }
+      }
     });
     dom["bit-grid"].addEventListener("click", (event) => {
       const cell = event.target.closest("[data-bit]");
@@ -2018,6 +2178,7 @@
     dom["reset-editor"].addEventListener("click", () => resetEditor());
     dom["fill-floats"].addEventListener("click", restoreFloatLayout);
     dom["clear-word"].addEventListener("click", clearCurrentWord);
+    dom["delete-word"].addEventListener("click", () => void deleteWordAt(state.selectedWord));
     dom["channel-sort"].addEventListener("change", (event) => {
       state.channelSort = event.target.value;
       renderChannelTable();
