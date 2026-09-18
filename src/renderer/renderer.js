@@ -113,7 +113,7 @@
     "engine-name", "word-count", "word-count-minus", "word-count-plus", "frame-byte-count",
     "derived-target", "derived-class", "derived-dll", "derived-json", "engine-error", "stat-words",
     "stat-fields", "stat-used", "layout-stat-words", "layout-stat-fields", "generate-descriptions", "description-auto-sync", "description-sync-toggle", "description-sync-label", "description-tabs", "description-language-name", "description-format",
-    "description-example", "description-url", "word-list", "word-list-count", "selected-word-label", "selection-summary",
+    "description-example", "description-url", "word-list", "word-list-count", "selected-word-label", "word-channels-tags", "selection-summary",
     "bit-grid", "editor-mode", "editor-word", "field-name", "field-type", "field-offset", "offset-hint",
     "allocation-range", "allocation-size", "field-error", "commit-field", "delete-field", "reset-editor",
     "field-editor", "fill-floats", "clear-word", "delete-word", "channel-sort", "channel-count", "channel-table-body",
@@ -858,6 +858,7 @@
     grid.replaceChildren();
     const outputIndexById = physicalChannelIndexMap();
     dom["selected-word-label"].textContent = `Word ${state.selectedWord}`;
+    const wordFields = state.config.fields.filter((field) => field.wordIndex === state.selectedWord);
     const selectedField = state.config.fields.find((field) => field._uiId === state.editingId);
     if (selectedField) {
       const selectedChannel = outputIndexById.get(selectedField._uiId);
@@ -866,7 +867,7 @@
       const fieldNameSuffix = selectedField.name?.trim() ? ` (${selectedField.name.trim()})` : "";
       dom["selection-summary"].textContent = `已选 ch${selectedChannel}${fieldNameSuffix} · ${selectedField.type} · ${formatStorageSize(typeWidth(selectedField.type))}`;
       applyChannelPresentation(dom["selection-summary"], selectedField._uiId, selectedChannel);
-    } else if (!state.config.fields.some((field) => field.wordIndex === state.selectedWord)) {
+    } else if (wordFields.length === 0) {
       const fallbackChannel = configuredOutputs().findIndex((output) => output.kind === "fallback" && output.wordIndex === state.selectedWord);
       dom["selection-summary"].classList.add("is-fallback");
       dom["selection-summary"].hidden = false;
@@ -881,6 +882,58 @@
       dom["selection-summary"].removeAttribute("data-channel-index");
       dom["selection-summary"].removeAttribute("style");
     }
+
+    const tagsContainer = dom["word-channels-tags"];
+    if (tagsContainer) {
+      tagsContainer.replaceChildren();
+      if (wordFields.length > 0) {
+        wordFields.forEach((field) => {
+          const channelIndex = outputIndexById.get(field._uiId);
+          const customName = field.name?.trim();
+          const hasCustomName = customName && customName !== `ch${channelIndex}`;
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = `channel-tag-chip${field._uiId === state.editingId ? " is-selected" : ""}`;
+          applyChannelPresentation(chip, field._uiId, channelIndex);
+          chip.title = `点击编辑 ${customName || `ch${channelIndex}`} (ch${channelIndex}) · ${field.type}`;
+
+          const chSpan = document.createElement("span");
+          chSpan.className = "tag-ch";
+          chSpan.textContent = `ch${channelIndex}`;
+          chip.append(chSpan);
+
+          if (hasCustomName) {
+            const sepSpan = document.createElement("span");
+            sepSpan.className = "tag-sep";
+            sepSpan.textContent = "·";
+            const nameSpan = document.createElement("span");
+            nameSpan.className = "tag-name";
+            nameSpan.textContent = customName;
+            chip.append(sepSpan, nameSpan);
+          }
+
+          const sep2Span = document.createElement("span");
+          sep2Span.className = "tag-sep";
+          sep2Span.textContent = "·";
+
+          const typeSpan = document.createElement("span");
+          typeSpan.className = "tag-type";
+          typeSpan.textContent = field.type;
+
+          chip.append(sep2Span, typeSpan);
+          chip.addEventListener("click", () => editField(field._uiId));
+          tagsContainer.append(chip);
+        });
+      } else {
+        const fallbackChannel = configuredOutputs().findIndex((output) => output.kind === "fallback" && output.wordIndex === state.selectedWord);
+        const chip = document.createElement("span");
+        chip.className = "channel-tag-chip is-fallback";
+        if (fallbackChannel >= 0) applyChannelPalette(chip, fallbackChannel);
+        chip.textContent = `默认 ch${fallbackChannel} · float · 4 Bytes`;
+        tagsContainer.append(chip);
+      }
+    }
+
     for (let byteIndex = 0; byteIndex < 4; byteIndex += 1) {
       const row = document.createElement("div");
       row.className = "byte-row";
@@ -892,8 +945,6 @@
       labelRange.textContent = `bits ${byteIndex * 8}–${byteIndex * 8 + 7}`;
       label.append(labelName, labelRange);
       row.append(label);
-
-      const firstRowFields = [];
 
       for (let localBit = 7; localBit >= 0; localBit -= 1) {
         const bit = byteIndex * 8 + localBit;
@@ -919,11 +970,6 @@
           if (bit === visibleEnd) cell.classList.add("region-left");
           if (bit === visibleStart) cell.classList.add("region-right");
 
-          const isFirstByteOfField = byteIndex === Math.floor(fieldStart / 8);
-          if (isFirstByteOfField && !firstRowFields.some((item) => item.field._uiId === field._uiId)) {
-            firstRowFields.push({ field, channelIndex, visibleStart, visibleEnd, meta });
-          }
-
           const displayName = field.name?.trim() ? field.name.trim() : `ch${channelIndex}`;
           cell.title = `ch${channelIndex} · ${field.name || "未命名"} · Word ${field.wordIndex} · ${field.type} · ${formatStorageSize(meta.width)} · ${formatRange(field.bitOffset, meta.width)}`;
           cell.setAttribute("aria-label", `编辑 ${displayName} (ch${channelIndex})，Word ${field.wordIndex}，${field.type}，${formatStorageSize(meta.width)}`);
@@ -938,25 +984,105 @@
         row.append(cell);
       }
 
-      for (const item of firstRowFields) {
-        const { field, channelIndex, visibleStart, visibleEnd } = item;
-        const displayName = field.name?.trim() ? field.name.trim() : `ch${channelIndex}`;
-        const spanLabel = document.createElement("div");
-        spanLabel.className = `byte-field-label${field._uiId === state.editingId ? " is-selected-field" : ""}`;
-        applyChannelPresentation(spanLabel, field._uiId, channelIndex);
-        const colStart = 9 - (visibleEnd - byteIndex * 8);
-        const colEnd = 9 - (visibleStart - byteIndex * 8) + 1;
-        spanLabel.style.gridColumn = `${colStart} / ${colEnd}`;
-
-        const nameSpan = document.createElement("span");
-        nameSpan.className = "field-label-text";
-        nameSpan.textContent = displayName;
-        spanLabel.append(nameSpan);
-        row.append(spanLabel);
-      }
-
       grid.append(row);
     }
+
+    const overlayLayer = document.createElement("div");
+    overlayLayer.className = "grid-overlay-layer";
+    overlayLayer.setAttribute("aria-hidden", "true");
+
+    if (wordFields.length > 0) {
+      wordFields.forEach((field) => {
+        const meta = TYPE_META[field.type];
+        const channelIndex = outputIndexById.get(field._uiId);
+        const startByte = Math.floor(field.bitOffset / 8);
+        const endByte = Math.floor((field.bitOffset + meta.width - 1) / 8);
+        const numRows = endByte - startByte + 1;
+        const top = startByte * 36;
+        const height = numRows * 36 - 2;
+
+        let leftStyle;
+        let widthStyle;
+        if (meta.width >= 8) {
+          leftStyle = "72px";
+          widthStyle = "calc(100% - 72px)";
+        } else {
+          const startBitInByte = field.bitOffset % 8;
+          const endBitInByte = (field.bitOffset + meta.width - 1) % 8;
+          const colStart = 7 - endBitInByte;
+          const colSpan = endBitInByte - startBitInByte + 1;
+          leftStyle = `calc(72px + (100% - 72px) * ${colStart} / 8)`;
+          widthStyle = `calc((100% - 72px) * ${colSpan} / 8)`;
+        }
+
+        const badge = document.createElement("div");
+        badge.className = `field-float-badge byte-field-label${field._uiId === state.editingId ? " is-selected-field" : ""}`;
+        applyChannelPresentation(badge, field._uiId, channelIndex);
+        badge.style.top = `${top}px`;
+        badge.style.height = `${height}px`;
+        badge.style.left = leftStyle;
+        badge.style.width = widthStyle;
+
+        const pill = document.createElement("div");
+        pill.className = "field-float-pill";
+
+        const chSpan = document.createElement("span");
+        chSpan.className = "pill-ch";
+        chSpan.textContent = `ch${channelIndex}`;
+        pill.append(chSpan);
+
+        const customName = field.name?.trim();
+        const hasCustomName = customName && customName !== `ch${channelIndex}`;
+        if (hasCustomName) {
+          const divider = document.createElement("span");
+          divider.className = "pill-divider";
+          divider.textContent = "·";
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "pill-name";
+          nameSpan.textContent = customName;
+          pill.append(divider, nameSpan);
+        }
+
+        if (meta.width >= 8) {
+          const divider2 = document.createElement("span");
+          divider2.className = "pill-divider";
+          divider2.textContent = "·";
+          const typeSpan = document.createElement("span");
+          typeSpan.className = "pill-type";
+          typeSpan.textContent = field.type;
+          pill.append(divider2, typeSpan);
+        }
+
+        badge.append(pill);
+        overlayLayer.append(badge);
+      });
+    } else {
+      const fallbackChannel = configuredOutputs().findIndex((output) => output.kind === "fallback" && output.wordIndex === state.selectedWord);
+      const badge = document.createElement("div");
+      badge.className = "field-float-badge byte-field-label is-fallback";
+      if (fallbackChannel >= 0) applyChannelPalette(badge, fallbackChannel);
+      badge.style.top = "0px";
+      badge.style.height = "142px";
+      badge.style.left = "72px";
+      badge.style.width = "calc(100% - 72px)";
+
+      const pill = document.createElement("div");
+      pill.className = "field-float-pill is-fallback";
+      const chSpan = document.createElement("span");
+      chSpan.className = "pill-ch";
+      chSpan.textContent = `默认 ch${fallbackChannel}`;
+      const divider = document.createElement("span");
+      divider.className = "pill-divider";
+      divider.textContent = "·";
+      const typeSpan = document.createElement("span");
+      typeSpan.className = "pill-type";
+      typeSpan.textContent = "float";
+      pill.append(chSpan, divider, typeSpan);
+      badge.append(pill);
+      overlayLayer.append(badge);
+    }
+
+    grid.append(overlayLayer);
   }
 
   function appendOutputRow(body, output) {
@@ -2209,6 +2335,7 @@
     });
     bindLinkedFieldHover(dom["bit-grid"]);
     bindLinkedFieldHover(dom["channel-table-body"]);
+    if (dom["word-channels-tags"]) bindLinkedFieldHover(dom["word-channels-tags"]);
 
     dom["load-config"].addEventListener("click", loadConfig);
     dom["save-config"].addEventListener("click", saveConfig);
