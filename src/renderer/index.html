@@ -63,7 +63,7 @@
         </aside>
 
         <main class="workspace" id="workspace">
-          <div class="page-view is-active" id="page-project" data-page="project">
+          <div class="page-view page-view-project is-active" id="page-project" data-page="project">
             <header class="page-heading">
               <div>
                 <h1>工程设置</h1>
@@ -71,7 +71,9 @@
               </div>
             </header>
 
-            <section class="settings-group repository-section" aria-labelledby="repository-title">
+            <div class="project-grid-container">
+              <div class="project-left-wing">
+                <section class="settings-group repository-section" aria-labelledby="repository-title">
               <div class="settings-group-header">
                 <div class="settings-group-header-text">
                   <h2 id="repository-title">仓库与路径</h2>
@@ -180,7 +182,9 @@
               </div>
               <div class="inline-message is-error" id="engine-error" role="alert" hidden></div>
             </section>
+          </div>
 
+          <div class="project-right-wing">
             <section class="settings-group" id="description-section">
               <div class="settings-group-header">
                 <div class="settings-group-header-text">
@@ -237,8 +241,10 @@
               </div>
             </section>
           </div>
+        </div>
+      </div>
 
-          <div class="page-view page-view-layout" id="page-layout" data-page="layout" hidden>
+      <div class="page-view page-view-layout" id="page-layout" data-page="layout" hidden>
             <header class="page-heading">
               <div>
                 <h1>通道布局</h1>
@@ -320,12 +326,14 @@
             </div>
           </div>
 
-          <div class="page-view" id="page-build" data-page="build" hidden>
+          <div class="page-view page-view-build" id="page-build" data-page="build" hidden>
             <header class="page-heading">
               <div><h1>构建输出</h1><p>检查 Release 环境，生成源码并查看构建结果。</p></div>
             </header>
 
-            <section class="settings-group build-environment-section">
+            <div class="build-split-view">
+              <div class="build-left-pane">
+                <section class="settings-group build-environment-section">
               <div class="settings-group-header">
                 <div class="settings-group-header-text">
                   <h2>Release 构建环境</h2>
@@ -370,15 +378,28 @@
                 </div>
               </div>
             </section>
+          </div>
 
-            <section class="tool-section build-section" id="build-section">
-              <div class="section-heading"><div><h2>构建日志</h2><p>生成和编译过程会实时显示在这里。</p></div></div>
-              <div class="log-panel">
-                <div class="log-toolbar"><span><strong>Release 输出</strong><small id="log-state">等待操作</small></span><button class="button button-plain" id="clear-log" type="button">清空</button></div>
-                <div class="log-output" id="log-output" aria-live="polite" aria-label="生成和构建日志"><div class="log-line is-info"><time>--:--:--</time><span>配置完成后，可仅生成源码或执行 Release 构建。</span></div></div>
+          <div class="build-right-pane">
+            <section class="tool-section build-console-section" id="build-section">
+              <div class="section-heading">
+                <div><h2>构建日志</h2><p>编译过程与工具链实时输出终端。</p></div>
+                <div class="console-actions">
+                  <button class="button button-plain button-small" id="clear-log" type="button"><span class="icon icon-delete"></span>清空</button>
+                </div>
+              </div>
+              <div class="log-panel console-log-panel">
+                <div class="log-toolbar">
+                  <span><strong>Release 终端</strong><small id="log-state">等待操作</small></span>
+                </div>
+                <div class="log-output console-log-output" id="log-output" aria-live="polite" aria-label="生成和构建日志">
+                  <div class="log-line is-info"><time>--:--:--</time><span>配置完成后，可仅生成源码或执行 Release 构建。</span></div>
+                </div>
               </div>
             </section>
           </div>
+        </div>
+      </div>
 
           <div class="page-view" id="page-about" data-page="about" hidden>
             <header class="page-heading">
@@ -394,7 +415,7 @@
                   <img class="about-logo" src="../../assets/app-icon.png" alt="" width="48" height="48" />
                   <div class="about-identity-text">
                     <h2 class="about-title">VOFA+ JustFloat 引擎生成器</h2>
-                    <span class="version-pill" id="about-version-badge">当前版本 v1.6.0</span>
+                    <span class="version-pill" id="about-version-badge">当前版本 v1.7.0</span>
                   </div>
                 </div>
                 <div class="about-actions">

@@ -153,7 +153,9 @@
     checkingUpdate: false
   };
 
-  const CURRENT_APP_VERSION = "1.6.0";
+  let refreshLayoutSplitter = null;
+
+  const CURRENT_APP_VERSION = "1.7.0";
   const GITHUB_REPO_URL = "https://github.com/loogg/vofa-justfloat-engine-config";
   const GITHUB_RELEASES_URL = "https://github.com/loogg/vofa-justfloat-engine-config/releases";
 
@@ -672,6 +674,11 @@
     state.activePage = pageName;
     renderPage();
     dom.workspace?.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
+    if (pageName === "layout" && typeof refreshLayoutSplitter === "function") {
+      requestAnimationFrame(() => {
+        refreshLayoutSplitter();
+      });
+    }
     if (options.focusHeading) {
       const heading = document.querySelector(`[data-page="${pageName}"] h1`);
       if (heading) {
@@ -1340,7 +1347,7 @@
     else select.selectedIndex = -1;
     select.disabled = !available;
     dom["commit-field"].disabled = !available || state.busy;
-    dom["offset-hint"].textContent = available ? meta.hint : `当前 Word 没有可容纳 ${type} 的连续位置`;
+    dom["offset-hint"].textContent = available ? meta.hint : `已无 ${type} 空间`;
     updateAllocationPreview();
   }
 
@@ -1349,7 +1356,7 @@
     const meta = TYPE_META[type] || TYPE_META.bit;
     const offset = Number(dom["field-offset"].value);
     if (dom["field-offset"].selectedIndex < 0 || !Number.isInteger(offset)) {
-      dom["allocation-range"].textContent = "当前 Word 无可用位置";
+      dom["allocation-range"].textContent = "无可用空间";
       dom["allocation-size"].textContent = formatStorageSize(meta.width);
       return;
     }
@@ -2241,8 +2248,8 @@
     if (!splitter || !container) return;
 
     const STORAGE_KEY = "vofa_split_left_ratio";
-    const DEFAULT_RATIO = 0.52;
-    const MIN_LEFT_PX = 560;
+    const DEFAULT_RATIO = 0.54;
+    const MIN_LEFT_PX = 620;
     const MIN_RIGHT_PX = 380;
 
     function applyRatio(ratio, persist = true) {
@@ -2255,7 +2262,7 @@
         leftPx = Math.max(MIN_LEFT_PX, containerWidth - MIN_RIGHT_PX - 10);
       }
       const safeRatio = Math.min(Math.max(leftPx / containerWidth, 0.35), 0.70);
-      container.style.setProperty("--split-left", `max(560px, ${(safeRatio * 100).toFixed(1)}%)`);
+      container.style.setProperty("--split-left", `max(620px, ${(safeRatio * 100).toFixed(1)}%)`);
       container.style.setProperty("--split-right", "1fr");
       if (persist) {
         try {
@@ -2263,6 +2270,22 @@
         } catch (_) {}
       }
     }
+
+    refreshLayoutSplitter = () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const parsed = saved ? parseFloat(saved) : DEFAULT_RATIO;
+        applyRatio(parsed, false);
+      } catch (_) {
+        applyRatio(DEFAULT_RATIO, false);
+      }
+    };
+
+    window.addEventListener("resize", () => {
+      if (state.activePage === "layout") {
+        refreshLayoutSplitter();
+      }
+    });
 
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
