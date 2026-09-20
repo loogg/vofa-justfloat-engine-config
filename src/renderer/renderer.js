@@ -153,7 +153,7 @@
     checkingUpdate: false
   };
 
-  const CURRENT_APP_VERSION = "1.5.0";
+  const CURRENT_APP_VERSION = "1.5.1";
   const GITHUB_REPO_URL = "https://github.com/loogg/vofa-justfloat-engine-config";
   const GITHUB_RELEASES_URL = "https://github.com/loogg/vofa-justfloat-engine-config/releases";
 
