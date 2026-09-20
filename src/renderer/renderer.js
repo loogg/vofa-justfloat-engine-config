@@ -153,7 +153,7 @@
     checkingUpdate: false
   };
 
-  const CURRENT_APP_VERSION = "1.5.1";
+  const CURRENT_APP_VERSION = "1.6.0";
   const GITHUB_REPO_URL = "https://github.com/loogg/vofa-justfloat-engine-config";
   const GITHUB_RELEASES_URL = "https://github.com/loogg/vofa-justfloat-engine-config/releases";
 
@@ -2235,6 +2235,116 @@
     showToast(title, message, "error");
   }
 
+  function bindLayoutSplitter() {
+    const splitter = document.getElementById("layout-splitter");
+    const container = document.querySelector(".layout-split-view");
+    if (!splitter || !container) return;
+
+    const STORAGE_KEY = "vofa_split_left_ratio";
+    const DEFAULT_RATIO = 0.52;
+    const MIN_LEFT_PX = 560;
+    const MIN_RIGHT_PX = 380;
+
+    function applyRatio(ratio, persist = true) {
+      const containerWidth = container.getBoundingClientRect().width;
+      if (containerWidth <= 0) return;
+
+      let leftPx = containerWidth * ratio;
+      if (leftPx < MIN_LEFT_PX) leftPx = MIN_LEFT_PX;
+      if (containerWidth - leftPx - 10 < MIN_RIGHT_PX) {
+        leftPx = Math.max(MIN_LEFT_PX, containerWidth - MIN_RIGHT_PX - 10);
+      }
+      const safeRatio = Math.min(Math.max(leftPx / containerWidth, 0.35), 0.70);
+      container.style.setProperty("--split-left", `max(560px, ${(safeRatio * 100).toFixed(1)}%)`);
+      container.style.setProperty("--split-right", "1fr");
+      if (persist) {
+        try {
+          localStorage.setItem(STORAGE_KEY, safeRatio.toFixed(3));
+        } catch (_) {}
+      }
+    }
+
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = parseFloat(saved);
+        if (!isNaN(parsed) && parsed >= 0.35 && parsed <= 0.70) {
+          applyRatio(parsed, false);
+        } else {
+          applyRatio(DEFAULT_RATIO, false);
+        }
+      } else {
+        applyRatio(DEFAULT_RATIO, false);
+      }
+    } catch (_) {
+      applyRatio(DEFAULT_RATIO, false);
+    }
+
+    let isDragging = false;
+
+    splitter.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      isDragging = true;
+      splitter.setPointerCapture(event.pointerId);
+      splitter.classList.add("is-dragging");
+      container.classList.add("is-dragging");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+
+    splitter.addEventListener("pointermove", (event) => {
+      if (!isDragging) return;
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const mouseX = event.clientX - rect.left;
+      const ratio = mouseX / rect.width;
+      applyRatio(ratio, true);
+    });
+
+    function stopDrag(event) {
+      if (!isDragging) return;
+      isDragging = false;
+      try {
+        if (splitter.hasPointerCapture(event.pointerId)) {
+          splitter.releasePointerCapture(event.pointerId);
+        }
+      } catch (_) {}
+      splitter.classList.remove("is-dragging");
+      container.classList.remove("is-dragging");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+
+    splitter.addEventListener("pointerup", stopDrag);
+    splitter.addEventListener("pointercancel", stopDrag);
+
+    splitter.addEventListener("dblclick", () => {
+      applyRatio(DEFAULT_RATIO, true);
+    });
+
+    splitter.addEventListener("keydown", (event) => {
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const currentRatio = parseFloat(localStorage.getItem(STORAGE_KEY)) || DEFAULT_RATIO;
+      const currentLeftPx = rect.width * currentRatio;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        applyRatio((currentLeftPx - 24) / rect.width, true);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        applyRatio((currentLeftPx + 24) / rect.width, true);
+      } else if (event.key === "Enter" || event.key === "Home") {
+        event.preventDefault();
+        applyRatio(DEFAULT_RATIO, true);
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      const saved = parseFloat(localStorage.getItem(STORAGE_KEY)) || DEFAULT_RATIO;
+      applyRatio(saved, false);
+    });
+  }
+
   function bindEvents() {
     document.querySelectorAll("[data-page-target]").forEach((button) => {
       button.addEventListener("click", () => selectPage(button.dataset.pageTarget, { focusHeading: true }));
@@ -2361,6 +2471,7 @@
     bindLinkedFieldHover(dom["bit-grid"]);
     bindLinkedFieldHover(dom["channel-table-body"]);
     if (dom["word-channels-tags"]) bindLinkedFieldHover(dom["word-channels-tags"]);
+    bindLayoutSplitter();
 
     dom["load-config"].addEventListener("click", loadConfig);
     dom["save-config"].addEventListener("click", saveConfig);

@@ -1414,11 +1414,57 @@ select option {
 
 .layout-split-view {
   display: grid;
-  grid-template-columns: minmax(700px, 1.75fr) minmax(360px, 1fr);
-  gap: 16px;
+  grid-template-columns: var(--split-left, minmax(540px, 1.08fr)) 10px var(--split-right, minmax(380px, 1fr));
+  gap: 0;
   align-items: start;
   width: 100%;
   min-width: 0;
+  position: relative;
+}
+
+.layout-split-view.is-dragging {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+.layout-splitter {
+  width: 10px;
+  height: 100%;
+  min-height: 440px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  padding: 0 1px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.layout-splitter:hover,
+.layout-splitter:focus-visible,
+.layout-splitter.is-dragging {
+  background: rgba(15, 108, 189, 0.08);
+  outline: none;
+}
+
+.layout-splitter .splitter-grip {
+  width: 4px;
+  height: 36px;
+  border-radius: 2px;
+  background: #d8dde3;
+  transition: background-color 0.15s ease, height 0.15s ease;
+}
+
+.layout-splitter:hover .splitter-grip,
+.layout-splitter:focus-visible .splitter-grip,
+.layout-splitter.is-dragging .splitter-grip {
+  background: var(--accent);
+  height: 52px;
 }
 
 .layout-split-view .tool-section {
@@ -1433,6 +1479,8 @@ select option {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  padding-right: 8px;
+  overflow: hidden;
 }
 
 .layout-left-pane .section-heading {
@@ -1441,9 +1489,9 @@ select option {
 
 .layout-left-pane .layout-workbench {
   display: grid;
-  grid-template-columns: minmax(360px, 1.25fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(270px, 1.2fr) minmax(210px, 1fr);
   align-items: stretch;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
   min-width: 0;
 }
@@ -1508,13 +1556,14 @@ select option {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding-left: 8px;
 }
 
 .layout-right-pane .channels-table-wrap {
   position: relative;
   max-height: calc(100vh - 200px);
   min-height: 380px;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1525,43 +1574,78 @@ select option {
 .layout-right-pane .channel-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
+}
+
+.layout-right-pane .channel-table th,
+.layout-right-pane .channel-table td {
+  padding: 0 10px;
 }
 
 .layout-right-pane .channel-table th:nth-child(1),
 .layout-right-pane .channel-table td:nth-child(1) {
-  width: 54px;
+  width: 72px;
+  min-width: 68px;
+  white-space: nowrap;
 }
 
 .layout-right-pane .channel-table th:nth-child(2),
 .layout-right-pane .channel-table td:nth-child(2) {
-  width: auto;
+  min-width: 90px;
+  max-width: 180px;
+  padding-left: 8px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .layout-right-pane .channel-table th:nth-child(3),
 .layout-right-pane .channel-table td:nth-child(3) {
-  width: 66px;
+  width: 76px;
+  min-width: 72px;
 }
 
 .layout-right-pane .channel-table th:nth-child(4),
 .layout-right-pane .channel-table td:nth-child(4) {
-  width: 78px;
+  width: 116px;
+  min-width: 110px;
+  white-space: nowrap;
 }
 
 .layout-right-pane .channel-table th:nth-child(5),
 .layout-right-pane .channel-table td:nth-child(5) {
-  width: 110px;
+  width: auto;
+  min-width: 160px;
+  white-space: normal;
+  line-height: 1.35;
+  color: var(--text-secondary);
 }
 
 .layout-right-pane .channel-table th:last-child,
 .layout-right-pane .channel-table td:last-child {
-  width: 44px;
+  width: 56px;
+  min-width: 56px;
   text-align: right;
+  padding-right: 12px;
 }
 
-@media (max-width: 1140px) {
+@media (max-width: 1040px) {
   .layout-split-view {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .layout-splitter {
+    display: none;
+  }
+
+  .layout-left-pane {
+    padding-right: 0;
+  }
+
+  .layout-right-pane {
+    padding-left: 0;
   }
 }
 
