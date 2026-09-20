@@ -238,7 +238,7 @@
             </section>
           </div>
 
-          <div class="page-view" id="page-layout" data-page="layout" hidden>
+          <div class="page-view page-view-layout" id="page-layout" data-page="layout" hidden>
             <header class="page-heading">
               <div>
                 <h1>通道布局</h1>
@@ -250,68 +250,70 @@
               </div>
             </header>
 
-            <section class="tool-section" id="layout-section">
-              <div class="section-heading">
-                <div><h2>4 字节布局</h2><p>每个 Word 固定 32 bits；空 Word 默认输出 float，已拆分 Word 的空白位不输出。</p></div>
-                <div class="section-actions">
-                  <button class="button button-subtle" id="fill-floats" type="button">恢复全 Float</button>
-                  <button class="button button-subtle button-danger-text" id="clear-word" type="button">清空当前 Word</button>
-                  <button class="button button-subtle button-danger-text" id="delete-word" type="button"><span class="icon icon-delete"></span>删除当前 Word</button>
+            <div class="layout-split-view">
+              <section class="tool-section layout-left-pane" id="layout-section">
+                <div class="section-heading">
+                  <div><h2>4 字节布局</h2><p>每个 Word 固定 32 bits；空 Word 默认输出 float，已拆分 Word 的空白位不输出。</p></div>
+                  <div class="section-actions">
+                    <button class="button button-subtle" id="fill-floats" type="button">恢复全 Float</button>
+                    <button class="button button-subtle button-danger-text" id="clear-word" type="button">清空当前 Word</button>
+                    <button class="button button-subtle button-danger-text" id="delete-word" type="button"><span class="icon icon-delete"></span>删除当前 Word</button>
+                  </div>
                 </div>
-              </div>
-              <div class="word-browser">
-                <span class="field-label">配置 Word <b id="word-list-count">4</b></span>
-                <div class="word-list" id="word-list" role="listbox" aria-label="选择 4 字节数据单元"></div>
-              </div>
-              <div class="layout-workbench">
-                <div class="bit-canvas">
-                  <div class="canvas-heading">
-                    <div class="canvas-context"><strong id="selected-word-label">WORD 0</strong><span>Byte 0 为最低有效字节</span><div class="word-channels-tags" id="word-channels-tags" aria-label="当前 Word 输出通道"></div><span class="selection-summary" id="selection-summary" hidden></span></div>
-                    <div class="legend" aria-label="通道颜色说明">
-                      <span class="legend-channel"><i></i>颜色区分输出 ch</span><span class="legend-empty"><i></i>空白位</span><span class="legend-hint">悬停会联动下方表格</span>
+                <div class="word-browser">
+                  <span class="field-label">配置 Word <b id="word-list-count">4</b></span>
+                  <div class="word-list" id="word-list" role="listbox" aria-label="选择 4 字节数据单元"></div>
+                </div>
+                <div class="layout-workbench">
+                  <div class="bit-canvas">
+                    <div class="canvas-heading">
+                      <div class="canvas-context"><strong id="selected-word-label">WORD 0</strong><span>Byte 0 为最低有效字节</span><div class="word-channels-tags" id="word-channels-tags" aria-label="当前 Word 输出通道"></div><span class="selection-summary" id="selection-summary" hidden></span></div>
+                      <div class="legend" aria-label="通道颜色说明">
+                        <span class="legend-channel"><i></i>颜色区分输出 ch</span><span class="legend-empty"><i></i>空白位</span><span class="legend-hint">悬停联动右侧表格</span>
+                      </div>
                     </div>
+                    <div class="bit-ruler" aria-hidden="true"><span></span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div>
+                    <div class="bit-grid" id="bit-grid" aria-label="4 乘 8 位布局预览"></div>
+                    <div class="precision-note" id="precision-note"><span class="icon icon-info" aria-hidden="true"></span><span>所有通道最终写入 <code>QVector&lt;float&gt;</code>；uint32 或 int32 的绝对值超过 16,777,216 时可能损失整数精度。</span></div>
                   </div>
-                  <div class="bit-ruler" aria-hidden="true"><span></span><span>7</span><span>6</span><span>5</span><span>4</span><span>3</span><span>2</span><span>1</span><span>0</span></div>
-                  <div class="bit-grid" id="bit-grid" aria-label="4 乘 8 位布局预览"></div>
-                  <div class="precision-note" id="precision-note"><span class="icon icon-info" aria-hidden="true"></span><span>所有通道最终写入 <code>QVector&lt;float&gt;</code>；uint32 或 int32 的绝对值超过 16,777,216 时可能损失整数精度。</span></div>
+                  <form class="field-editor" id="field-editor" novalidate>
+                    <div class="editor-heading">
+                      <div><strong id="editor-mode">添加字段</strong><span id="editor-word">WORD 0</span></div>
+                      <button class="icon-button" id="reset-editor" type="button" aria-label="退出编辑" title="退出编辑"><span class="icon icon-dismiss"></span></button>
+                    </div>
+                    <label class="field-control"><span class="field-label">通道名称</span><input id="field-name" type="text" maxlength="48" spellcheck="false" autocomplete="off" placeholder="例如 status" /></label>
+                    <div class="editor-row">
+                      <label class="field-control"><span class="field-label">字段类型</span><span class="select-shell"><select id="field-type"><option value="bit">bit · 1 bit</option><option value="uint8">uint8 · 1 Byte</option><option value="int8">int8 · 1 Byte</option><option value="uint16">uint16 · 2 Bytes</option><option value="int16">int16 · 2 Bytes</option><option value="uint32">uint32 · 4 Bytes</option><option value="int32">int32 · 4 Bytes</option><option value="float">float · 4 Bytes</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
+                      <label class="field-control"><span class="field-label">单元内位置</span><span class="select-shell"><select id="field-offset"></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
+                    </div>
+                    <div class="allocation-row"><span id="offset-hint">Bit 位置 0–31</span><strong id="allocation-range">Bit 0</strong><span id="allocation-size">1 bit</span></div>
+                    <div class="inline-message is-error" id="field-error" role="alert" hidden></div>
+                    <div class="editor-actions">
+                      <button class="button button-primary" id="commit-field" type="submit"><span class="icon icon-add"></span>添加字段</button>
+                      <button class="button button-subtle button-danger-text" id="delete-field" type="button" hidden><span class="icon icon-delete"></span>删除</button>
+                    </div>
+                  </form>
                 </div>
-                <form class="field-editor" id="field-editor" novalidate>
-                  <div class="editor-heading">
-                    <div><strong id="editor-mode">添加字段</strong><span id="editor-word">WORD 0</span></div>
-                    <button class="icon-button" id="reset-editor" type="button" aria-label="退出编辑" title="退出编辑"><span class="icon icon-dismiss"></span></button>
-                  </div>
-                  <label class="field-control"><span class="field-label">通道名称</span><input id="field-name" type="text" maxlength="48" spellcheck="false" autocomplete="off" placeholder="例如 status" /></label>
-                  <div class="editor-row">
-                    <label class="field-control"><span class="field-label">字段类型</span><span class="select-shell"><select id="field-type"><option value="bit">bit · 1 bit</option><option value="uint8">uint8 · 1 Byte</option><option value="int8">int8 · 1 Byte</option><option value="uint16">uint16 · 2 Bytes</option><option value="int16">int16 · 2 Bytes</option><option value="uint32">uint32 · 4 Bytes</option><option value="int32">int32 · 4 Bytes</option><option value="float">float · 4 Bytes</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
-                    <label class="field-control"><span class="field-label">单元内位置</span><span class="select-shell"><select id="field-offset"></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span></label>
-                  </div>
-                  <div class="allocation-row"><span id="offset-hint">Bit 位置 0–31</span><strong id="allocation-range">Bit 0</strong><span id="allocation-size">1 bit</span></div>
-                  <div class="inline-message is-error" id="field-error" role="alert" hidden></div>
-                  <div class="editor-actions">
-                    <button class="button button-primary" id="commit-field" type="submit"><span class="icon icon-add"></span>添加字段</button>
-                    <button class="button button-subtle button-danger-text" id="delete-field" type="button" hidden><span class="icon icon-delete"></span>删除</button>
-                  </div>
-                </form>
-              </div>
-            </section>
+              </section>
 
-            <section class="tool-section" id="channels-section">
-              <div class="section-heading">
-                <div><h2>输出通道</h2><p>通道按实际帧生成：存在的配置 Word 先输出，后续 Word 再逐个追加 float。</p></div>
-                <div class="table-tools">
-                  <label for="channel-sort">查看排序</label>
-                  <span class="select-shell select-shell-compact"><select id="channel-sort"><option value="physical">物理位置</option><option value="name">通道名称</option><option value="type">数据类型</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span>
-                  <span class="channel-count"><strong id="channel-count">4</strong> Channels</span>
+              <section class="tool-section layout-right-pane" id="channels-section">
+                <div class="section-heading">
+                  <div><h2>输出通道</h2><p>按实际帧长生成，悬停联动左侧位网格。</p></div>
+                  <div class="table-tools">
+                    <label for="channel-sort">查看排序</label>
+                    <span class="select-shell select-shell-compact"><select id="channel-sort"><option value="physical">物理位置</option><option value="name">通道名称</option><option value="type">数据类型</option></select><span class="icon icon-chevron-down" aria-hidden="true"></span></span>
+                    <span class="channel-count"><strong id="channel-count">4</strong> Channels</span>
+                  </div>
                 </div>
-              </div>
-              <div class="table-wrap">
-                <table class="channel-table" role="treegrid" aria-label="按 Word 分组的输出通道">
-                  <thead><tr><th>输出</th><th>通道名称</th><th>类型</th><th>占用位置</th><th>转换说明</th><th><span class="sr-only">操作</span></th></tr></thead>
-                  <tbody id="channel-table-body"></tbody>
-                </table>
-                <div class="empty-table" id="empty-table" hidden><strong>还没有输出通道</strong><span>选择一个 Word 并添加字段。</span></div>
-              </div>
-            </section>
+                <div class="table-wrap channels-table-wrap">
+                  <table class="channel-table" role="treegrid" aria-label="按 Word 分组的输出通道">
+                    <thead><tr><th>输出</th><th>通道名称</th><th>类型</th><th>占用位置</th><th>转换说明</th><th><span class="sr-only">操作</span></th></tr></thead>
+                    <tbody id="channel-table-body"></tbody>
+                  </table>
+                  <div class="empty-table" id="empty-table" hidden><strong>还没有输出通道</strong><span>选择一个 Word 并添加字段。</span></div>
+                </div>
+              </section>
+            </div>
           </div>
 
           <div class="page-view" id="page-build" data-page="build" hidden>

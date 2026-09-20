@@ -89,7 +89,7 @@ textarea:disabled {
 
 .app-shell {
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr) auto;
+  grid-template-rows: 44px minmax(0, 1fr);
   width: 100%;
   height: 100%;
   background: var(--bg);
@@ -198,7 +198,7 @@ textarea:disabled {
 
 .app-body {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -207,11 +207,12 @@ textarea:disabled {
 .sidebar {
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: space-between;
-  width: 240px;
+  width: 68px;
   min-width: 0;
   min-height: 0;
-  padding: 10px 8px 12px 8px;
+  padding: 10px 0 12px;
   border-right: 1px solid rgba(0, 0, 0, 0.06);
   background: #f3f3f3;
   user-select: none;
@@ -220,41 +221,40 @@ textarea:disabled {
 .side-nav {
   display: flex;
   flex-direction: column;
+  align-items: center;
   width: 100%;
-  gap: 3px;
+  gap: 4px;
 }
 
 .nav-item {
   position: relative;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  width: 100%;
-  height: 36px;
-  padding: 0 12px;
-  gap: 12px;
+  justify-content: center;
+  width: 56px;
+  height: 52px;
+  padding: 5px 2px;
+  gap: 4px;
   border: 0;
-  border-radius: 4px;
-  color: #1a1a1a;
+  border-radius: 6px;
+  color: #4a4a4a;
   background: transparent;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
-  font-size: 13.5px;
-  font-weight: 400;
-  line-height: 1;
   transition: background 0.1s ease, color 0.1s ease;
 }
 
 .nav-item-text {
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 1.1;
   white-space: nowrap;
+  color: inherit;
 }
 
 .nav-item:hover {
   background: rgba(0, 0, 0, 0.04);
-  color: #000000;
+  color: #1a1a1a;
 }
 
 .nav-item:active {
@@ -262,27 +262,19 @@ textarea:disabled {
 }
 
 .nav-item.is-active {
-  background: #ffffff !important;
-  color: #000000 !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: none !important;
 }
 
 .nav-item.is-active::before {
-  content: "" !important;
-  display: block !important;
-  position: absolute;
-  left: 3px;
-  top: 9px;
-  width: 3px;
-  height: 18px;
-  border-radius: 2px;
-  background: var(--accent);
+  display: none !important;
 }
 
 .nav-item .icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   color: #5f5f5f;
 }
@@ -294,15 +286,16 @@ textarea:disabled {
 .sidebar-footer {
   display: flex;
   flex-direction: column;
+  align-items: center;
   width: 100%;
-  gap: 3px;
+  gap: 4px;
   padding-top: 8px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .nav-item-footer {
-  width: 100%;
-  height: 36px;
+  width: 56px;
+  height: 52px;
 }
 
 /* ==========================================================================
@@ -796,7 +789,7 @@ select option {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 24px 32px 32px;
+  padding: 16px 24px 24px;
   background: var(--bg);
   scrollbar-gutter: stable;
 }
@@ -806,6 +799,10 @@ select option {
   max-width: 1080px;
   min-width: 0;
   margin: 0 auto;
+}
+
+.page-view.page-view-layout {
+  max-width: 1400px;
 }
 
 .page-view[hidden] {
@@ -887,9 +884,10 @@ select option {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   min-height: 28px;
   margin-bottom: 8px;
-  gap: 16px;
+  gap: 8px 16px;
 }
 
 .section-heading > div:first-child {
@@ -1398,13 +1396,154 @@ select option {
   font-weight: 600;
 }
 
-.layout-workbench {
+/* ==========================================================================
+   Two-Column Split View for Channel Layout Workbench
+   ========================================================================== */
+
+.layout-split-view {
   display: grid;
+  grid-template-columns: minmax(430px, 1.15fr) minmax(360px, 1fr);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.layout-split-view .tool-section {
+  margin: 0;
+  padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.layout-left-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.layout-left-pane .section-heading {
+  margin-bottom: 2px;
+}
+
+.layout-left-pane .layout-workbench {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) 288px;
-  align-items: stretch;
+  gap: 12px;
+}
+
+.layout-left-pane .bit-canvas,
+.layout-left-pane .field-editor {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.layout-left-pane .bit-canvas {
+  padding: 8px 10px;
+}
+
+.layout-left-pane .byte-label,
+.layout-left-pane .bit-cell {
+  height: 28px;
+}
+
+.layout-left-pane .precision-note {
+  min-height: 24px;
+  margin-top: 6px;
+  padding: 3px 6px;
+  font-size: 11.5px;
+}
+
+.layout-left-pane .field-editor {
+  padding: 8px 10px;
+  gap: 6px;
+}
+
+.layout-left-pane .field-control {
+  gap: 2px;
+}
+
+.layout-left-pane .allocation-row {
+  min-height: 26px;
+  padding: 3px 6px;
+}
+
+.layout-left-pane .editor-heading {
+  min-height: 22px;
+  padding-bottom: 4px;
+}
+
+.layout-right-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.layout-right-pane .channels-table-wrap {
+  position: relative;
+  max-height: calc(100vh - 200px);
+  min-height: 380px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  scrollbar-gutter: stable;
+}
+
+.layout-right-pane .channel-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.layout-right-pane .channel-table th:nth-child(1),
+.layout-right-pane .channel-table td:nth-child(1) {
+  width: 54px;
+}
+
+.layout-right-pane .channel-table th:nth-child(2),
+.layout-right-pane .channel-table td:nth-child(2) {
+  width: auto;
+}
+
+.layout-right-pane .channel-table th:nth-child(3),
+.layout-right-pane .channel-table td:nth-child(3) {
+  width: 66px;
+}
+
+.layout-right-pane .channel-table th:nth-child(4),
+.layout-right-pane .channel-table td:nth-child(4) {
+  width: 78px;
+}
+
+.layout-right-pane .channel-table th:nth-child(5),
+.layout-right-pane .channel-table td:nth-child(5) {
+  width: 110px;
+}
+
+.layout-right-pane .channel-table th:last-child,
+.layout-right-pane .channel-table td:last-child {
+  width: 44px;
+  text-align: right;
+}
+
+@media (max-width: 860px) {
+  .layout-split-view {
+    grid-template-columns: 1fr;
+  }
+}
+
+.layout-workbench {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   gap: 12px;
 }
 
@@ -2183,7 +2322,7 @@ select option {
 
 .word-tree-toggle {
   display: grid;
-  grid-template-columns: 20px max-content max-content minmax(120px, 1fr);
+  grid-template-columns: 20px max-content max-content minmax(40px, 1fr);
   align-items: center;
   width: 100%;
   height: 37px;
@@ -2231,7 +2370,7 @@ select option {
   display: grid;
   grid-template-columns: repeat(32, 1fr);
   justify-self: end;
-  width: min(220px, 100%);
+  width: min(150px, 100%);
   height: 5px;
   overflow: hidden;
   border-radius: 3px;
@@ -3037,11 +3176,6 @@ select option {
     grid-column: 1 / -1;
   }
 
-  .layout-workbench {
-    grid-template-columns: minmax(0, 1fr) 250px;
-    gap: 8px;
-  }
-
   .channel-table th:nth-child(5),
   .channel-table td:nth-child(5) {
     display: none;
@@ -3050,39 +3184,13 @@ select option {
 
 @media (max-width: 900px) {
   .app-shell {
-    grid-template-rows: 44px minmax(0, 1fr) 52px;
-  }
-
-  .app-body {
-    grid-template-columns: 56px minmax(0, 1fr);
-  }
-
-  .sidebar {
-    width: 56px;
-    padding: 10px 4px 12px;
-    align-items: center;
-  }
-
-  .nav-item {
-    justify-content: center;
-    padding: 0;
-    width: 44px;
-    gap: 0;
-  }
-
-  .nav-item-text {
-    display: none;
-  }
-
-  .nav-item.is-active::before {
-    left: 2px;
+    grid-template-rows: 44px minmax(0, 1fr);
   }
 
   .repository-fields {
     grid-template-columns: 1fr;
   }
 
-  .layout-workbench,
   .description-editor {
     grid-template-columns: 1fr;
   }
