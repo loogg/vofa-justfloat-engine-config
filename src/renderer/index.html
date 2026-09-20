@@ -33,28 +33,31 @@
       </header>
 
       <div class="app-body">
-        <aside class="sidebar" aria-label="配置页面">
+        <aside class="sidebar" aria-label="配置导航">
           <nav class="side-nav">
             <button class="nav-item is-active" id="nav-project" type="button" data-page-target="project" aria-current="page" title="工程设置">
-              <span class="icon icon-document" aria-hidden="true"></span><span>工程设置</span>
+              <span class="icon icon-document" aria-hidden="true"></span>
+              <span class="nav-item-text">工程设置</span>
             </button>
             <button class="nav-item" id="nav-layout" type="button" data-page-target="layout" title="通道布局">
-              <span class="icon icon-code" aria-hidden="true"></span><span>通道布局</span>
+              <span class="icon icon-code" aria-hidden="true"></span>
+              <span class="nav-item-text">通道布局</span>
             </button>
             <button class="nav-item" id="nav-build" type="button" data-page-target="build" title="构建输出">
-              <span class="icon icon-build" aria-hidden="true"></span><span>构建输出</span>
+              <span class="icon icon-build" aria-hidden="true"></span>
+              <span class="nav-item-text">构建输出</span>
             </button>
           </nav>
 
           <div class="sidebar-footer">
             <button class="nav-item nav-item-footer" id="open-environment" type="button" title="构建环境设置">
               <span class="status-icon" id="environment-status-icon" aria-hidden="true"><span class="icon icon-settings"></span></span>
-              <span>环境</span>
+              <span class="nav-item-text">环境诊断</span>
               <span class="sr-only" id="environment-summary">正在自动扫描…</span>
             </button>
             <button class="nav-item nav-item-footer" id="nav-about" type="button" data-page-target="about" title="关于与更新">
               <span class="icon icon-info" aria-hidden="true"></span>
-              <span>关于</span>
+              <span class="nav-item-text">关于</span>
             </button>
           </div>
         </aside>
@@ -62,91 +65,185 @@
         <main class="workspace" id="workspace">
           <div class="page-view is-active" id="page-project" data-page="project">
             <header class="page-heading">
-              <div><h1>工程设置</h1><p>选择仓库，设置引擎名称和插件描述。</p></div>
+              <div>
+                <h1>工程设置</h1>
+                <p>配置 Vodka 仓库路径、数据引擎名称与元数据描述。</p>
+              </div>
             </header>
 
-            <section class="tool-section repository-section" aria-labelledby="repository-title">
-              <div class="section-heading">
-                <div><h2 id="repository-title">仓库位置</h2><p>工具可独立发布；请选择包含 dataengines 的 Vodka 仓库。</p></div>
-              </div>
-              <div class="repository-fields">
-                <div class="path-control repo-control">
-                  <span class="path-label">仓库根目录</span>
-                  <input id="repo-root-preview" type="text" readonly aria-readonly="true" placeholder="请选择 Vodka 仓库根目录" />
-                  <button class="icon-button" id="browse-repo" type="button" aria-label="选择仓库根目录" title="选择仓库根目录"><span class="icon icon-folder-open" aria-hidden="true"></span></button>
+            <section class="settings-group repository-section" aria-labelledby="repository-title">
+              <div class="settings-group-header">
+                <div class="settings-group-header-text">
+                  <h2 id="repository-title">仓库与路径</h2>
+                  <p>工具可独立发布；请选择包含 dataengines 的 Vodka 仓库。</p>
                 </div>
-                <div class="path-control dataengines-control">
-                  <span class="path-label">Data Engines</span>
-                  <input id="dataengines-preview" type="text" readonly aria-readonly="true" placeholder="由仓库根目录自动推导" />
+              </div>
+              <div class="settings-cards">
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="settings-card-icon" aria-hidden="true"><span class="icon icon-folder-open"></span></span>
+                    <div class="settings-card-text">
+                      <strong class="settings-card-title">仓库根目录</strong>
+                      <span class="settings-card-desc">包含 Vodka 源码工程与 dataengines 目录的主路径</span>
+                    </div>
+                  </div>
+                  <div class="settings-card-action repo-action">
+                    <input class="win-input" id="repo-root-preview" type="text" readonly aria-readonly="true" placeholder="请选择 Vodka 仓库根目录" />
+                    <button class="button" id="browse-repo" type="button" aria-label="选择仓库根目录" title="选择仓库根目录">
+                      <span class="icon icon-folder-open" aria-hidden="true"></span>
+                      <span>浏览</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="settings-card-icon" aria-hidden="true"><span class="icon icon-code"></span></span>
+                    <div class="settings-card-text">
+                      <strong class="settings-card-title">Data Engines 目录</strong>
+                      <span class="settings-card-desc">由仓库根目录自动派生并校验存在性</span>
+                    </div>
+                  </div>
+                  <div class="settings-card-action repo-action">
+                    <input class="win-input" id="dataengines-preview" type="text" readonly aria-readonly="true" placeholder="由仓库根目录自动推导" />
+                    <span class="win-badge">只读</span>
+                  </div>
                 </div>
               </div>
             </section>
 
-            <section class="tool-section" id="engine-section">
-              <div class="section-heading">
-                <div><h2>基础设置</h2><p>只需输入一个名称，其余标识符和文件名自动生成。</p></div>
+            <section class="settings-group" id="engine-section">
+              <div class="settings-group-header">
+                <div class="settings-group-header-text">
+                  <h2>基础设置</h2>
+                  <p>输入引擎名称并指定解码 Word 数量，其余标识符与文件名自动生成。</p>
+                </div>
                 <div class="section-metrics" aria-label="配置统计">
                   <span><strong id="stat-words">4</strong> 个配置 Word</span>
                   <span><strong id="stat-fields">动态</strong> 输出通道</span>
                   <span><strong id="stat-used">100%</strong> 位利用率</span>
                 </div>
               </div>
-              <div class="basic-grid">
-                <label class="field-control engine-name-control">
-                  <span class="field-label">引擎名称</span>
-                  <input id="engine-name" type="text" maxlength="64" value="Packed Float" autocomplete="off" spellcheck="false" />
-                  <span class="field-hint">使用英文字母和数字，例如 Packed Float。</span>
-                </label>
-                <label class="field-control word-count-control">
-                  <span class="field-label">自定义解析 Word 数</span>
-                  <div class="number-stepper">
-                    <button id="word-count-minus" type="button" aria-label="减少配置 Word"><span class="icon icon-subtract"></span></button>
-                    <input id="word-count" type="number" min="1" max="256" value="4" inputmode="numeric" />
-                    <button id="word-count-plus" type="button" aria-label="增加配置 Word"><span class="icon icon-add"></span></button>
+
+              <div class="settings-cards">
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="settings-card-icon" aria-hidden="true"><span class="icon icon-document"></span></span>
+                    <div class="settings-card-text">
+                      <strong class="settings-card-title">引擎名称</strong>
+                      <span class="settings-card-desc">使用英文字母与数字，例如 Packed Float</span>
+                    </div>
                   </div>
-                  <span class="field-hint">映射前 <strong id="frame-byte-count">16 Bytes</strong>；实际帧可短可长。</span>
-                </label>
-                <div class="derived-block" aria-label="自动派生标识符">
-                  <span class="derived-label">自动派生</span>
-                  <dl>
-                    <div><dt>Target</dt><dd id="derived-target">packedfloat</dd></div>
-                    <div><dt>C++ 类</dt><dd id="derived-class">PackedFloat</dd></div>
-                    <div><dt>DLL</dt><dd id="derived-dll">packedfloat.dll</dd></div>
-                    <div><dt>描述文件</dt><dd id="derived-json">packedfloat.json</dd></div>
-                  </dl>
+                  <div class="settings-card-action">
+                    <input class="win-input" id="engine-name" type="text" maxlength="64" value="Packed Float" autocomplete="off" spellcheck="false" />
+                  </div>
+                </div>
+
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="settings-card-icon" aria-hidden="true"><span class="icon icon-settings"></span></span>
+                    <div class="settings-card-text">
+                      <strong class="settings-card-title">自定义解析 Word 数</strong>
+                      <span class="settings-card-desc">映射前 <strong id="frame-byte-count">16 Bytes</strong>；保持 4 字节对齐，实际接收帧可短可长</span>
+                    </div>
+                  </div>
+                  <div class="settings-card-action">
+                    <div class="number-stepper">
+                      <button id="word-count-minus" type="button" aria-label="减少配置 Word"><span class="icon icon-subtract"></span></button>
+                      <input id="word-count" type="number" min="1" max="256" value="4" inputmode="numeric" />
+                      <button id="word-count-plus" type="button" aria-label="增加配置 Word"><span class="icon icon-add"></span></button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="settings-card settings-card-vertical">
+                  <div class="settings-card-header">
+                    <div class="settings-card-info">
+                      <span class="settings-card-icon" aria-hidden="true"><span class="icon icon-build"></span></span>
+                      <div class="settings-card-text">
+                        <strong class="settings-card-title">自动派生标识符与产物</strong>
+                        <span class="settings-card-desc">随引擎名称自动计算编译目标、C++ 类名、动态库及描述文件名</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="settings-card-body">
+                    <div class="derived-block" aria-label="自动派生标识符">
+                      <dl>
+                        <div><dt>Target</dt><dd id="derived-target">packedfloat</dd></div>
+                        <div><dt>C++ 类</dt><dd id="derived-class">PackedFloat</dd></div>
+                        <div><dt>DLL</dt><dd id="derived-dll">packedfloat.dll</dd></div>
+                        <div><dt>描述文件</dt><dd id="derived-json">packedfloat.json</dd></div>
+                      </dl>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="inline-message is-error" id="engine-error" role="alert" hidden></div>
             </section>
 
-            <section class="tool-section" id="description-section">
-              <div class="section-heading">
-                <div><h2>JSON 描述</h2><p>自动模式随引擎名、Word 和通道布局刷新；手动编辑后会暂停，避免覆盖你的内容。</p></div>
-                <div class="description-actions">
-                  <label class="description-sync-toggle" id="description-sync-toggle" title="布局变化时自动刷新三种语言的 format 和 example">
-                    <input id="description-auto-sync" type="checkbox" checked />
-                    <span id="description-sync-label">自动同步</span>
-                  </label>
-                  <button class="button button-subtle" id="generate-descriptions" type="button"><span class="icon icon-translate" aria-hidden="true"></span>立即刷新三语</button>
-                  <div class="language-tabs" id="description-tabs" role="tablist" aria-label="描述语言">
-                    <button class="is-active" type="button" role="tab" aria-selected="true" data-language="SimplifiedChinese">简体中文</button>
-                    <button type="button" role="tab" aria-selected="false" data-language="TraditionalChinese">繁體中文</button>
-                    <button type="button" role="tab" aria-selected="false" data-language="English">English</button>
-                  </div>
+            <section class="settings-group" id="description-section">
+              <div class="settings-group-header">
+                <div class="settings-group-header-text">
+                  <h2>JSON 描述</h2>
+                  <p>自动模式随引擎名、Word 和通道布局刷新；手动编辑后会暂停，避免覆盖你的内容。</p>
                 </div>
               </div>
-              <div class="description-editor" role="tabpanel" aria-labelledby="description-language-name">
-                <div class="description-language" id="description-language-name">简体中文</div>
-                <label class="field-control description-format"><span class="field-label">format</span><textarea id="description-format" rows="4" spellcheck="false"></textarea></label>
-                <label class="field-control description-example"><span class="field-label">example</span><textarea id="description-example" rows="4" spellcheck="false"></textarea></label>
-                <label class="field-control description-url"><span class="field-label">url</span><input id="description-url" type="url" spellcheck="false" placeholder="https://..." /></label>
+
+              <div class="settings-cards">
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="settings-card-icon" aria-hidden="true"><span class="icon icon-translate"></span></span>
+                    <div class="settings-card-text">
+                      <strong class="settings-card-title">自动同步状态</strong>
+                      <span class="settings-card-desc">布局变化时自动推导三种语言的 format 与 example</span>
+                    </div>
+                  </div>
+                  <div class="settings-card-action">
+                    <label class="win-toggle" id="description-sync-toggle" title="布局变化时自动刷新三种语言的 format 和 example">
+                      <input id="description-auto-sync" type="checkbox" checked />
+                      <span class="win-toggle-track"><span class="win-toggle-thumb"></span></span>
+                      <span class="win-toggle-label" id="description-sync-label">自动同步</span>
+                    </label>
+                    <button class="button button-subtle" id="generate-descriptions" type="button">
+                      <span class="icon icon-translate" aria-hidden="true"></span>
+                      <span>立即刷新三语</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="settings-card settings-card-vertical">
+                  <div class="settings-card-header">
+                    <div class="settings-card-info">
+                      <div class="settings-card-text">
+                        <strong class="settings-card-title">插件多语言描述内容</strong>
+                        <span class="settings-card-desc">编辑不同语言下展示的格式说明、使用示例与文档链接</span>
+                      </div>
+                    </div>
+                    <div class="language-tabs" id="description-tabs" role="tablist" aria-label="描述语言">
+                      <button class="is-active" type="button" role="tab" aria-selected="true" data-language="SimplifiedChinese">简体中文</button>
+                      <button type="button" role="tab" aria-selected="false" data-language="TraditionalChinese">繁體中文</button>
+                      <button type="button" role="tab" aria-selected="false" data-language="English">English</button>
+                    </div>
+                  </div>
+                  <div class="settings-card-body">
+                    <div class="description-editor" role="tabpanel" aria-labelledby="description-language-name">
+                      <div class="description-language" id="description-language-name">简体中文</div>
+                      <label class="field-control description-format"><span class="field-label">format</span><textarea id="description-format" rows="4" spellcheck="false"></textarea></label>
+                      <label class="field-control description-example"><span class="field-label">example</span><textarea id="description-example" rows="4" spellcheck="false"></textarea></label>
+                      <label class="field-control description-url"><span class="field-label">url</span><input id="description-url" type="url" spellcheck="false" placeholder="https://..." /></label>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
 
           <div class="page-view" id="page-layout" data-page="layout" hidden>
             <header class="page-heading">
-              <div><h1>通道布局</h1><p>只解析帧中实际存在的 Word；未配置和后续 Word 继续按 JustFloat float 输出。</p></div>
+              <div>
+                <h1>通道布局</h1>
+                <p>只解析帧中实际存在的 Word；未配置和后续 Word 继续按 JustFloat float 输出。</p>
+              </div>
               <div class="section-metrics" aria-label="布局统计">
                 <span><strong id="layout-stat-words">4</strong> 个配置 Word</span>
                 <span><strong id="layout-stat-fields">动态</strong> 输出通道</span>
@@ -222,24 +319,49 @@
               <div><h1>构建输出</h1><p>检查 Release 环境，生成源码并查看构建结果。</p></div>
             </header>
 
-            <section class="tool-section build-environment-section">
-              <div class="section-heading"><div><h2>Release 构建环境</h2><p>目标 Kit 固定为 Desktop_Qt_5_14_2_MSVC2017_64bit-Release。</p></div></div>
-              <div class="build-environment-row">
-                <span class="status-icon" id="build-environment-status-icon"><span class="icon icon-settings"></span></span>
-                <span><strong id="build-environment-title">正在自动扫描</strong><small id="build-environment-detail">正在检查 Qt、构建工具和 MSVC。</small></span>
-                <button class="button button-subtle" id="open-environment-build" type="button"><span class="icon icon-settings"></span>查看与配置</button>
+            <section class="settings-group build-environment-section">
+              <div class="settings-group-header">
+                <div class="settings-group-header-text">
+                  <h2>Release 构建环境</h2>
+                  <p>目标 Kit 固定为 Desktop_Qt_5_14_2_MSVC2017_64bit-Release。</p>
+                </div>
+              </div>
+              <div class="settings-cards">
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="status-icon" id="build-environment-status-icon"><span class="icon icon-settings"></span></span>
+                    <div class="settings-card-text">
+                      <strong class="settings-card-title" id="build-environment-title">正在自动扫描</strong>
+                      <span class="settings-card-desc" id="build-environment-detail">正在检查 Qt、构建工具和 MSVC。</span>
+                    </div>
+                  </div>
+                  <div class="settings-card-action">
+                    <button class="button button-subtle" id="open-environment-build" type="button"><span class="icon icon-settings"></span>查看与配置</button>
+                  </div>
+                </div>
               </div>
             </section>
 
-            <section class="tool-section output-section">
-              <div class="section-heading"><div><h2>输出位置</h2><p>源码与 justfloat 同级，DLL 和描述文件输出到 generated。</p></div></div>
-              <div class="output-list">
-                <div><span class="icon icon-code" aria-hidden="true"></span><strong>引擎源码</strong><code id="source-path">dataengines/packedfloat</code></div>
-                <div><span class="icon icon-build" aria-hidden="true"></span><strong>构建产物</strong><code id="generated-path">dataengines/generated</code></div>
+            <section class="settings-group output-section">
+              <div class="settings-group-header">
+                <div class="settings-group-header-text">
+                  <h2>输出位置</h2>
+                  <p>源码与 justfloat 同级，DLL 和描述文件输出到 generated。</p>
+                </div>
               </div>
-              <div class="output-actions">
-                <span class="kit-badge" id="kit-badge">Desktop_Qt_5_14_2_MSVC2017_64bit-Release</span>
-                <button class="button button-subtle" id="open-generated-inline" type="button"><span class="icon icon-folder-open"></span>打开产物目录</button>
+              <div class="settings-cards">
+                <div class="settings-card settings-card-vertical">
+                  <div class="settings-card-body">
+                    <div class="output-list">
+                      <div><span class="icon icon-code" aria-hidden="true"></span><strong>引擎源码</strong><code id="source-path">dataengines/packedfloat</code></div>
+                      <div><span class="icon icon-build" aria-hidden="true"></span><strong>构建产物</strong><code id="generated-path">dataengines/generated</code></div>
+                    </div>
+                    <div class="output-actions">
+                      <span class="kit-badge" id="kit-badge">Desktop_Qt_5_14_2_MSVC2017_64bit-Release</span>
+                      <button class="button button-subtle" id="open-generated-inline" type="button"><span class="icon icon-folder-open"></span>打开产物目录</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -260,23 +382,20 @@
               </div>
             </header>
 
-            <section class="about-card about-card-primary">
-              <div class="about-card-header">
+            <section class="about-hero-card">
+              <div class="about-hero-header">
                 <div class="about-identity">
-                  <span class="about-icon" aria-hidden="true">
-                    <span class="icon icon-info"></span>
-                  </span>
-                  <h2 class="about-title">VOFA+ JustFloat 引擎生成器</h2>
+                  <img class="about-logo" src="../../assets/app-icon.png" alt="" width="48" height="48" />
+                  <div class="about-identity-text">
+                    <h2 class="about-title">VOFA+ JustFloat 引擎生成器</h2>
+                    <span class="version-pill" id="about-version-badge">当前版本 v1.5.0</span>
+                  </div>
                 </div>
                 <div class="about-actions">
-                  <button class="button button-about" id="about-github" type="button">GitHub</button>
-                  <button class="button button-about" id="about-releases" type="button">更新日志</button>
-                  <button class="button button-primary button-about" id="about-check-update" type="button">检查更新</button>
+                  <button class="button" id="about-github" type="button">GitHub</button>
+                  <button class="button" id="about-releases" type="button">更新日志</button>
+                  <button class="button button-primary" id="about-check-update" type="button">检查更新</button>
                 </div>
-              </div>
-
-              <div class="about-version-row">
-                <span class="version-pill" id="about-version-badge">当前版本 v1.5.0</span>
               </div>
 
               <div class="about-meta">
@@ -284,7 +403,7 @@
                 <p class="about-subtitle" id="about-runtime-status">软件可独立发布运行；Qt 代码仅作为生成的数据引擎源码。</p>
               </div>
 
-              <div class="about-status-banner" id="about-status-banner" role="status" aria-live="polite">
+              <div class="about-status-banner win-infobar" id="about-status-banner" role="status" aria-live="polite">
                 <span class="about-status-icon" id="about-status-icon" hidden><span class="icon icon-info"></span></span>
                 <span class="about-status-text" id="about-status-text">点击“检查更新”获取最新正式版本。</span>
                 <a class="about-status-link" id="about-status-link" href="#" hidden target="_blank" rel="noreferrer">前往下载</a>
@@ -295,12 +414,21 @@
               </div>
             </section>
 
-            <section class="about-card about-card-secondary">
-              <h3 class="about-guide-title">如何完成升级</h3>
-              <div class="about-guide-content">
-                <p>下载后运行安装包或解压便携版 ZIP 即可直接覆盖程序文件，无需手动解压或迁移。</p>
-                <p>升级完整保留工程设置、数据引擎源码与环境设置；新版本与旧版本格式向后兼容。</p>
-                <p>检查更新通过 GitHub Releases 接口安全获取，切换页面不会中断检查。完成的更新包保存在本地。</p>
+            <section class="settings-group">
+              <div class="settings-group-header">
+                <div class="settings-group-header-text">
+                  <h2>升级说明</h2>
+                  <p>了解升级流程、工程数据完整性与更新安全性。</p>
+                </div>
+              </div>
+              <div class="settings-cards">
+                <div class="settings-card settings-card-vertical">
+                  <div class="settings-card-body about-guide-content">
+                    <p><strong>无缝覆盖安装：</strong>下载后运行安装包或解压便携版 ZIP 即可直接覆盖程序文件，无需手动解压或迁移。</p>
+                    <p><strong>数据完全保留：</strong>升级完整保留工程设置、数据引擎源码与环境设置；新版本与旧版本格式向后兼容。</p>
+                    <p><strong>安全高效检查：</strong>检查更新通过 GitHub Releases 接口安全获取，切换页面不会中断检查。完成的更新包保存在本地。</p>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
