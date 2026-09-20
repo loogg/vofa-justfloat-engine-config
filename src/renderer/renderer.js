@@ -126,7 +126,8 @@
     "build-environment-detail", "open-environment-build", "confirm-dialog", "confirm-form", "confirm-icon",
     "confirm-title", "confirm-message", "confirm-detail", "confirm-cancel", "confirm-action", "toast-region",
     "about-github", "about-releases", "about-check-update", "about-version-badge", "about-runtime-status",
-    "about-status-banner", "about-status-icon", "about-status-text", "about-status-link"
+    "about-status-banner", "about-status-icon", "about-status-text", "about-status-link",
+    "header-status-dot", "header-status-text"
   ];
 
   const dom = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
@@ -660,6 +661,10 @@
       if (active) button.setAttribute("aria-current", "page");
       else button.removeAttribute("aria-current");
     });
+    const actionBar = document.querySelector(".action-bar");
+    if (actionBar) {
+      actionBar.hidden = state.activePage === "about";
+    }
   }
 
   function selectPage(pageName, options = {}) {
@@ -1462,6 +1467,19 @@
       dom["dock-icon"].innerHTML = `<span class="icon icon-${icon}" aria-hidden="true"></span>`;
       dom["dock-title"].textContent = title;
       dom["dock-detail"].textContent = detail;
+
+      if (dom["header-status-dot"] && dom["header-status-text"]) {
+        if (errors.length) {
+          dom["header-status-dot"].className = "status-dot is-warning";
+          dom["header-status-text"].textContent = "配置需修改";
+        } else if (!readiness.buildReady) {
+          dom["header-status-dot"].className = "status-dot is-warning";
+          dom["header-status-text"].textContent = "环境待配置";
+        } else {
+          dom["header-status-dot"].className = "status-dot is-ready";
+          dom["header-status-text"].textContent = "构建环境就绪";
+        }
+      }
     }
 
     const configBlocked = state.busy || errors.length > 0 || !api;

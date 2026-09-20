@@ -15,13 +15,20 @@
     <div class="app-shell">
       <header class="app-bar">
         <div class="app-identity">
-          <img src="../../assets/app-icon.png" alt="" width="24" height="24" />
-          <div><strong>JustFloat 引擎生成器</strong><span>VOFA+ 自定义数据引擎工具</span></div>
+          <img src="../../assets/app-icon.png" alt="" width="20" height="20" />
+          <div class="app-title-group">
+            <strong class="app-title">JustFloat 引擎生成器</strong>
+            <span class="app-subtitle">VOFA+ 自定义数据引擎工具</span>
+          </div>
         </div>
         <div class="app-actions">
+          <div class="header-status" id="header-status">
+            <span class="status-dot is-ready" id="header-status-dot"></span>
+            <span class="header-status-text" id="header-status-text">构建环境就绪</span>
+          </div>
           <span class="unsaved-indicator" id="unsaved-indicator" hidden>未保存</span>
-          <button class="button button-subtle" id="load-config" type="button"><span class="icon icon-document" aria-hidden="true"></span>载入配置</button>
-          <button class="button button-subtle" id="save-config" type="button"><span class="icon icon-save" aria-hidden="true"></span>保存配置</button>
+          <button class="button button-header" id="load-config" type="button"><span class="icon icon-document" aria-hidden="true"></span>载入配置</button>
+          <button class="button button-header" id="save-config" type="button"><span class="icon icon-save" aria-hidden="true"></span>保存配置</button>
         </div>
       </header>
 
@@ -259,22 +266,17 @@
                   <span class="about-icon" aria-hidden="true">
                     <span class="icon icon-info"></span>
                   </span>
-                  <div class="about-titles">
-                    <h2>VOFA+ JustFloat 引擎生成器</h2>
-                    <span class="version-pill" id="about-version-badge">当前版本 v1.5.0</span>
-                  </div>
+                  <h2 class="about-title">VOFA+ JustFloat 引擎生成器</h2>
                 </div>
                 <div class="about-actions">
-                  <button class="button button-subtle" id="about-github" type="button">
-                    <span class="icon icon-open" aria-hidden="true"></span>GitHub
-                  </button>
-                  <button class="button button-subtle" id="about-releases" type="button">
-                    <span class="icon icon-document" aria-hidden="true"></span>更新日志
-                  </button>
-                  <button class="button button-primary" id="about-check-update" type="button">
-                    <span class="icon icon-refresh" aria-hidden="true"></span>检查更新
-                  </button>
+                  <button class="button button-about" id="about-github" type="button">GitHub</button>
+                  <button class="button button-about" id="about-releases" type="button">更新日志</button>
+                  <button class="button button-primary button-about" id="about-check-update" type="button">检查更新</button>
                 </div>
+              </div>
+
+              <div class="about-version-row">
+                <span class="version-pill" id="about-version-badge">当前版本 v1.5.0</span>
               </div>
 
               <div class="about-meta">
@@ -283,7 +285,7 @@
               </div>
 
               <div class="about-status-banner" id="about-status-banner" role="status" aria-live="polite">
-                <span class="about-status-icon" id="about-status-icon"><span class="icon icon-info"></span></span>
+                <span class="about-status-icon" id="about-status-icon" hidden><span class="icon icon-info"></span></span>
                 <span class="about-status-text" id="about-status-text">点击“检查更新”获取最新正式版本。</span>
                 <a class="about-status-link" id="about-status-link" href="#" hidden target="_blank" rel="noreferrer">前往下载</a>
               </div>
@@ -295,11 +297,11 @@
 
             <section class="about-card about-card-secondary">
               <h3 class="about-guide-title">如何完成升级</h3>
-              <ul class="about-guide-list">
-                <li>下载后运行安装包或解压便携版 ZIP 即可直接覆盖程序文件，无需手动解压或迁移。</li>
-                <li>升级完整保留工程设置、数据引擎源码与环境设置；新版本与旧版本格式向后兼容。</li>
-                <li>检查更新通过 GitHub Releases 接口安全获取，切换页面不会中断检查。</li>
-              </ul>
+              <div class="about-guide-content">
+                <p>下载后运行安装包或解压便携版 ZIP 即可直接覆盖程序文件，无需手动解压或迁移。</p>
+                <p>升级完整保留工程设置、数据引擎源码与环境设置；新版本与旧版本格式向后兼容。</p>
+                <p>检查更新通过 GitHub Releases 接口安全获取，切换页面不会中断检查。完成的更新包保存在本地。</p>
+              </div>
             </section>
           </div>
         </main>
