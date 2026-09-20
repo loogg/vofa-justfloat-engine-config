@@ -124,7 +124,9 @@
     "refresh-environment", "save-environment", "env-repo-root", "env-data-engines", "env-qmake", "env-jom",
     "env-vcvars", "env-kit-name", "build-environment-status-icon", "build-environment-title",
     "build-environment-detail", "open-environment-build", "confirm-dialog", "confirm-form", "confirm-icon",
-    "confirm-title", "confirm-message", "confirm-detail", "confirm-cancel", "confirm-action", "toast-region"
+    "confirm-title", "confirm-message", "confirm-detail", "confirm-cancel", "confirm-action", "toast-region",
+    "about-github", "about-releases", "about-check-update", "about-version-badge", "about-runtime-status",
+    "about-status-banner", "about-status-icon", "about-status-text", "about-status-link"
   ];
 
   const dom = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
@@ -146,8 +148,13 @@
     busyAction: "",
     wordCountChangePending: false,
     environmentLoaded: false,
-    environmentScanning: false
+    environmentScanning: false,
+    checkingUpdate: false
   };
+
+  const CURRENT_APP_VERSION = "1.5.0";
+  const GITHUB_REPO_URL = "https://github.com/loogg/vofa-justfloat-engine-config";
+  const GITHUB_RELEASES_URL = "https://github.com/loogg/vofa-justfloat-engine-config/releases";
 
   function nextUiId() {
     uiIdSeed += 1;
@@ -2384,6 +2391,99 @@
     document.querySelectorAll("[data-select-path]").forEach((button) => {
       button.addEventListener("click", () => selectEnvironmentPath(button.dataset.selectPath, button));
     });
+
+    dom["about-github"]?.addEventListener("click", () => {
+      if (api && typeof api.openExternal === "function") {
+        api.openExternal(GITHUB_REPO_URL);
+      } else {
+        window.open(GITHUB_REPO_URL, "_blank");
+      }
+    });
+
+    dom["about-releases"]?.addEventListener("click", () => {
+      if (api && typeof api.openExternal === "function") {
+        api.openExternal(GITHUB_RELEASES_URL);
+      } else {
+        window.open(GITHUB_RELEASES_URL, "_blank");
+      }
+    });
+
+    dom["about-check-update"]?.addEventListener("click", checkAppUpdate);
+  }
+
+  async function checkAppUpdate() {
+    if (state.checkingUpdate) return;
+    state.checkingUpdate = true;
+    const btn = dom["about-check-update"];
+    const banner = dom["about-status-banner"];
+    const text = dom["about-status-text"];
+    const link = dom["about-status-link"];
+    const icon = dom["about-status-icon"];
+
+    if (btn) btn.disabled = true;
+    if (banner) banner.className = "about-status-banner is-checking";
+    if (text) text.textContent = "正在连接 GitHub 检查最新版本…";
+    if (link) link.hidden = true;
+    if (icon) icon.innerHTML = '<span class="icon icon-refresh is-spinning"></span>';
+
+    try {
+      if (!api || typeof api.checkUpdate !== "function") {
+        throw new Error("更新检查接口不可用。");
+      }
+
+      const res = await api.checkUpdate();
+      if (res && res.hasUpdate) {
+        if (banner) banner.className = "about-status-banner is-update-available";
+        const dateStr = res.publishedAt ? `（发布于 ${res.publishedAt.slice(0, 10)}）` : "";
+        if (text) text.textContent = `发现新版本 ${res.releaseName || `v${res.latestVersion}`}${dateStr}！`;
+        if (link) {
+          link.hidden = false;
+          link.href = res.releaseUrl || GITHUB_RELEASES_URL;
+          link.textContent = "前往 GitHub 下载新版本";
+          link.onclick = (e) => {
+            e.preventDefault();
+            if (api && typeof api.openExternal === "function") api.openExternal(link.href);
+          };
+        }
+        if (icon) icon.innerHTML = '<span class="icon icon-info"></span>';
+        showToast("发现新版本", `最新版本为 v${res.latestVersion}，点击前往下载。`, "info");
+      } else if (res && res.success) {
+        if (banner) banner.className = "about-status-banner is-latest";
+        if (text) text.textContent = `当前已是最新版本 (v${res.currentVersion || CURRENT_APP_VERSION})，暂无可用更新。`;
+        if (link) link.hidden = true;
+        if (icon) icon.innerHTML = '<span class="icon icon-check"></span>';
+        showToast("已是最新版本", `当前运行版本为 v${res.currentVersion || CURRENT_APP_VERSION}。`, "success");
+      } else {
+        if (banner) banner.className = "about-status-banner is-error";
+        if (text) text.textContent = res && res.error ? res.error : "无法获取 GitHub 更新信息，请直接在浏览器中查看。";
+        if (link) {
+          link.hidden = false;
+          link.href = GITHUB_RELEASES_URL;
+          link.textContent = "在浏览器中查看 Release";
+          link.onclick = (e) => {
+            e.preventDefault();
+            if (api && typeof api.openExternal === "function") api.openExternal(link.href);
+          };
+        }
+        if (icon) icon.innerHTML = '<span class="icon icon-warning"></span>';
+      }
+    } catch (err) {
+      if (banner) banner.className = "about-status-banner is-error";
+      if (text) text.textContent = `检查更新失败：${err.message || "网络异常"}`;
+      if (link) {
+        link.hidden = false;
+        link.href = GITHUB_RELEASES_URL;
+        link.textContent = "直接访问 GitHub Releases";
+        link.onclick = (e) => {
+          e.preventDefault();
+          if (api && typeof api.openExternal === "function") api.openExternal(link.href);
+        };
+      }
+      if (icon) icon.innerHTML = '<span class="icon icon-warning"></span>';
+    } finally {
+      state.checkingUpdate = false;
+      if (btn) btn.disabled = false;
+    }
   }
 
   function subscribeToLogs() {

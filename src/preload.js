@@ -10,7 +10,9 @@ const channels = Object.freeze({
   generate: 'engine:generate',
   build: 'engine:build',
   openGenerated: 'generated:open',
-  buildLog: 'build:log'
+  buildLog: 'build:log',
+  checkUpdate: 'app:check-update',
+  openExternal: 'shell:open-external'
 });
 
 const engineApi = Object.freeze({
@@ -25,6 +27,8 @@ const engineApi = Object.freeze({
     ipcRenderer.invoke(channels.build, config, environment),
   openGenerated: (environmentOrRepoRoot) =>
     ipcRenderer.invoke(channels.openGenerated, environmentOrRepoRoot),
+  checkUpdate: () => ipcRenderer.invoke(channels.checkUpdate),
+  openExternal: (url) => ipcRenderer.invoke(channels.openExternal, url),
   onBuildLog: (callback) => {
     if (typeof callback !== 'function') {
       throw new TypeError('onBuildLog(callback) requires a function.');
