@@ -155,7 +155,7 @@
 
   let refreshLayoutSplitter = null;
 
-  const CURRENT_APP_VERSION = "1.7.0";
+  const CURRENT_APP_VERSION = "1.7.1";
   const GITHUB_REPO_URL = "https://github.com/loogg/vofa-justfloat-engine-config";
   const GITHUB_RELEASES_URL = "https://github.com/loogg/vofa-justfloat-engine-config/releases";
 
@@ -2248,9 +2248,9 @@
     if (!splitter || !container) return;
 
     const STORAGE_KEY = "vofa_split_left_ratio";
-    const DEFAULT_RATIO = 0.54;
+    const DEFAULT_RATIO = 0.58;
     const MIN_LEFT_PX = 620;
-    const MIN_RIGHT_PX = 380;
+    const MIN_RIGHT_PX = 320;
 
     function applyRatio(ratio, persist = true) {
       const containerWidth = container.getBoundingClientRect().width;
