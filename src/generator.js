@@ -1055,21 +1055,22 @@ function writeJsonAtomically(finalPath, value) {
   }
 }
 
-function commitRuntimeArtifacts(descriptor, builtDll, descriptionFile, dllFile) {
-  fs.mkdirSync(path.dirname(descriptionFile), { recursive: true });
-  fs.mkdirSync(path.dirname(dllFile), { recursive: true });
-  const stagedDescription = uniqueSiblingPath(descriptionFile, 'vofa-staged');
-  const stagedDll = uniqueSiblingPath(dllFile, 'vofa-staged');
+function commitRuntimeArtifacts(descriptor, builtDll, destinations) {
+  const items = [];
   try {
-    writeJson(stagedDescription, descriptor);
-    fs.copyFileSync(builtDll, stagedDll, fs.constants.COPYFILE_EXCL);
-    return commitStagedFiles([
-      { stagedPath: stagedDescription, finalPath: descriptionFile },
-      { stagedPath: stagedDll, finalPath: dllFile },
-    ]);
+    for (const { descriptionFile, dllFile } of destinations) {
+      for (const finalPath of [descriptionFile, dllFile]) {
+        fs.mkdirSync(path.dirname(finalPath), { recursive: true });
+        const stagedPath = uniqueSiblingPath(finalPath, 'vofa-staged');
+        items.push({ stagedPath, finalPath });
+        if (finalPath === descriptionFile) writeJson(stagedPath, descriptor);
+        else fs.copyFileSync(builtDll, stagedPath, fs.constants.COPYFILE_EXCL);
+      }
+    }
+    // Both repository outputs and the optional VOFA+ pair roll back together.
+    return commitStagedFiles(items);
   } finally {
-    unlinkTemporaryFile(stagedDescription);
-    unlinkTemporaryFile(stagedDll);
+    items.forEach(({ stagedPath }) => unlinkTemporaryFile(stagedPath));
   }
 }
 
@@ -1218,7 +1219,8 @@ function generateEngine(config, options = {}) {
     }
   }
 
-  if (options.deferDescription !== true) {
+  const descriptionDeferred = options.deferDescription === true || fs.existsSync(outputFiles.dll);
+  if (!descriptionDeferred) {
     warnings = warnings.concat(writeJsonAtomically(outputFiles.description, descriptor));
   }
 
@@ -1234,7 +1236,7 @@ function generateEngine(config, options = {}) {
     descriptionFile: outputFiles.description,
     configFile: outputFiles.config,
     descriptor,
-    descriptionDeferred: options.deferDescription === true,
+    descriptionDeferred,
     warnings,
   };
 }
@@ -1520,6 +1522,25 @@ function getEnvironment(repoRootOrEnvironment) {
   return detectEnvironment({ repoRoot: repoRootOrEnvironment });
 }
 
+function inspectVofaInstallation(value) {
+  if (!value) return { vofaPath: '', valid: true, pluginsDirectory: '', message: '' };
+  const vofaPath = path.resolve(value);
+  const pluginsDirectory = path.join(vofaPath, 'plugins', 'dataengines');
+  try {
+    const root = fs.realpathSync(vofaPath);
+    const plugins = fs.realpathSync(pluginsDirectory);
+    const relative = path.relative(root, plugins);
+    if (!fs.statSync(pluginsDirectory).isDirectory()
+        || relative.startsWith(`..${path.sep}`) || relative === '..' || path.isAbsolute(relative)) {
+      throw new Error('The plugin directory must remain inside the installation.');
+    }
+    return { vofaPath, valid: true, pluginsDirectory, message: '' };
+  } catch (_error) {
+    return { vofaPath, valid: false, pluginsDirectory,
+      message: `VOFA+ 安装目录无效：请选择包含 plugins/dataengines 的目录。当前路径：${vofaPath}` };
+  }
+}
+
 function resolveProvidedTool(value, fallback) {
   if (!value) return fallback || null;
   const unquoted = String(value).replace(/^"|"$/g, '');
@@ -1547,6 +1568,14 @@ function environmentForBuild(options) {
 
   const missing = [];
   const warnings = Array.isArray(detected.warnings) ? [...detected.warnings] : [];
+  const installation = inspectVofaInstallation(options.vofaPath);
+  environment.vofaPath = installation.vofaPath;
+  environment.vofaValid = installation.valid;
+  environment.vofaPluginsDir = installation.pluginsDirectory;
+  if (!installation.valid) {
+    missing.push('valid VOFA+ installation (plugins/dataengines)');
+    warnings.push(installation.message);
+  }
   if (!environment.repositoryReady) missing.push('valid VOFA+ repository root');
   if (process.platform !== 'win32') missing.push('Windows host');
   if (!environment.cmdPath) missing.push('cmd.exe');
@@ -1754,11 +1783,21 @@ async function buildEngine(config, options = {}) {
   const win64Directory = path.join(generatedDirectory, 'win64');
   fs.mkdirSync(win64Directory, { recursive: true });
   const dllFile = path.join(win64Directory, `${generation.config.targetName}.dll`);
+  const destinations = [{ descriptionFile: generation.descriptionFile, dllFile }];
+  let installedDllFile = null;
+  let installedDescriptionFile = null;
+  if (environment.vofaPath) {
+    // Recheck the directory after compilation, before committing any outputs.
+    const installation = inspectVofaInstallation(environment.vofaPath);
+    if (!installation.valid) throw createError('INVALID_VOFA_INSTALLATION', installation.message);
+    installedDllFile = path.join(installation.pluginsDirectory, `${generation.config.targetName}.dll`);
+    installedDescriptionFile = path.join(installation.pluginsDirectory, `${generation.config.targetName}.json`);
+    destinations.push({ descriptionFile: installedDescriptionFile, dllFile: installedDllFile });
+  }
   const artifactWarnings = commitRuntimeArtifacts(
     generation.descriptor,
     builtDll,
-    generation.descriptionFile,
-    dllFile,
+    destinations,
   );
 
   return {
@@ -1767,6 +1806,9 @@ async function buildEngine(config, options = {}) {
     buildDirectory,
     builtDll,
     dllFile,
+    installedDllFile,
+    installedDescriptionFile,
+    outputDir: environment.vofaPluginsDir || generatedDirectory,
     command: build.command,
     exitCode: build.exitCode,
     output: build.output,
@@ -1784,6 +1826,7 @@ module.exports = {
   getEnvironment,
   detectEnvironment,
   inspectRepositoryLayout,
+  inspectVofaInstallation,
   decodeBuildOutputBuffer,
   createBuildOutputDecoder,
 };

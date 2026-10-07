@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const { pathToFileURL } = require('node:url');
@@ -10,6 +9,7 @@ const test = require('node:test');
 const { generateEngine, normalizeConfig } = require('../src/generator');
 
 const root = path.resolve(__dirname, '..');
+fs.mkdirSync(path.join(root, 'scratch/tests'), { recursive: true });
 const fixtureRepo = path.join(__dirname, 'fixtures', 'vofa-repository');
 const config = {
   version: 2,
@@ -21,9 +21,9 @@ const config = {
 };
 
 function workspace(t) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vofa-config-test-'));
+  const directory = fs.mkdtempSync(path.join(path.resolve(__dirname, '../scratch/tests'), 'vofa-config-test-'));
   t.after(() => {
-    assert.equal(path.dirname(path.resolve(directory)), path.resolve(os.tmpdir()));
+    assert.equal(path.dirname(path.resolve(directory)), path.resolve(path.resolve(__dirname, '../scratch/tests')));
     assert.match(path.basename(directory), /^vofa-config-test-/);
     fs.rmSync(directory, { recursive: true, force: true });
   });
@@ -82,6 +82,9 @@ function launch(directory) {
     dialogs,
     chooseOpen: (filePath) => { nextOpen = { canceled: false, filePaths: [filePath] }; },
     chooseSave: (filePath) => { nextSave = { canceled: false, filePath }; },
+    invokeUntrusted: (channel, ...args) => handlers.get(channel)({
+      sender: window.webContents, senderFrame: { url: 'https://untrusted.example/' }
+    }, ...args),
     invoke: (channel, ...args) => handlers.get(channel)({
       sender: window.webContents, senderFrame: window.webContents.mainFrame
     }, ...args)
@@ -224,9 +227,26 @@ test('preload passes repository context through the restricted open/save API', a
   await api.openConfig('selected-repo');
   await api.saveConfig(config, 'selected-repo');
   await api.openConfig();
+  await api.getAppInfo();
+  await api.selectPath('vofaPath');
   assert.deepEqual(calls, [
     ['config:open', 'selected-repo'],
     ['config:save', config, 'selected-repo'],
-    ['config:open', undefined]
+    ['config:open', undefined],
+    ['app:info'],
+    ['path:select', 'vofaPath']
   ]);
+});
+
+test('native IPC rejects other frames and reports package version through the same contract', async (t) => {
+  const application = launch(workspace(t));
+  await assert.rejects(application.invokeUntrusted('app:info'), /untrusted renderer/);
+  await assert.rejects(application.invoke('app:info', 'unexpected'), /Invalid IPC argument count/);
+  const info = await application.invoke('app:info');
+  assert.equal(info.version, require('../package.json').version);
+  assert.equal(info.mode, 'native');
+  application.chooseOpen(root);
+  assert.equal(await application.invoke('path:select', 'vofaPath'), root);
+  assert.match(application.dialogs.at(-1).title, /VOFA\+ 安装目录/);
+  assert.ok(application.dialogs.at(-1).properties.includes('openDirectory'));
 });

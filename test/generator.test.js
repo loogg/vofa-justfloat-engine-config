@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
@@ -13,10 +12,12 @@ const {
   deriveEngineNames,
   generateEngine,
   getEnvironment,
+  inspectVofaInstallation,
   normalizeConfig,
   validateConfig,
 } = require('../src/generator');
 
+fs.mkdirSync(path.resolve(__dirname, '../scratch/tests'), { recursive: true });
 const fixtureRepositoryRoot = path.join(__dirname, 'fixtures', 'vofa-repository');
 const sampleConfig = JSON.parse(fs.readFileSync(
   path.join(__dirname, '..', 'examples', 'customfloat.vofa-engine.json'),
@@ -33,9 +34,9 @@ function configFor(engineName) {
 }
 
 function createFixtureRepository(t) {
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vofa-engine-builder-test-'));
+  const temporaryRoot = fs.mkdtempSync(path.join(path.resolve(__dirname, '../scratch/tests'), 'vofa-engine-builder-test-'));
   const resolvedTempRoot = path.resolve(temporaryRoot);
-  const resolvedOsTemp = path.resolve(os.tmpdir());
+  const resolvedOsTemp = path.resolve(path.resolve(__dirname, '../scratch/tests'));
   assert.equal(path.dirname(resolvedTempRoot), resolvedOsTemp);
   assert.match(path.basename(resolvedTempRoot), /^vofa-engine-builder-test-/);
   t.after(() => fs.rmSync(resolvedTempRoot, { recursive: true, force: true }));
@@ -411,4 +412,91 @@ test('a pair-commit failure rolls both runtime artifacts back', async (t) => {
 
   assert.deepEqual(fs.readFileSync(initial.descriptionFile), priorJson);
   assert.deepEqual(fs.readFileSync(dllFile), priorDll);
+});
+
+test('VOFA+ installation is optional and must contain a real plugins/dataengines directory', (t) => {
+  const repo = createFixtureRepository(t);
+  assert.equal(inspectVofaInstallation('').valid, true);
+  assert.equal(inspectVofaInstallation(repo).valid, false);
+  const installation = path.join(repo, 'vofa');
+  fs.mkdirSync(path.join(installation, 'plugins/dataengines'), { recursive: true });
+  const result = inspectVofaInstallation(installation);
+  assert.equal(result.valid, true);
+  assert.equal(result.pluginsDirectory, path.join(installation, 'plugins/dataengines'));
+  const environment = getEnvironment({ repoRoot: repo, vofaPath: repo });
+  assert.equal(environment.vofaValid, false);
+  assert.equal(environment.buildReady, false);
+  assert.ok(environment.missing.some((entry) => entry.includes('installation')));
+});
+
+test('generating source alone preserves a description already paired with a runtime DLL', (t) => {
+  const repo = createFixtureRepository(t);
+  const first = generateEngine(sampleConfig, { repoRoot: repo });
+  const description = fs.readFileSync(first.descriptionFile);
+  fs.writeFileSync(path.join(repo, 'dataengines/generated/win64/customfloat.dll'), 'prior dll');
+  const changed = configFor('Custom Float');
+  changed.descriptions.English.format = 'Next build descriptor';
+  const next = generateEngine(changed, { repoRoot: repo });
+  assert.equal(next.descriptionDeferred, true);
+  assert.equal(next.descriptor.English.format, changed.descriptions.English.format);
+  assert.deepEqual(fs.readFileSync(first.descriptionFile), description);
+});
+
+test('VOFA+ install commits identical pairs and restores all four files on failure', async (t) => {
+  const repo = createFixtureRepository(t);
+  if (!getEnvironment(repo).ready) { t.skip('Exact Windows Qt/MSVC toolchain unavailable'); return; }
+  const installation = path.join(repo, 'vofa');
+  const pluginDirectory = path.join(installation, 'plugins/dataengines');
+  fs.mkdirSync(pluginDirectory, { recursive: true });
+  const options = { repoRoot: repo, vofaPath: installation, commandRunner: async (_environment, _project, buildDirectory, onOutput) => {
+    fs.writeFileSync(path.join(buildDirectory, 'customfloat.dll'), 'new dll');
+    onOutput?.('compiled');
+    return { command: 'test build', exitCode: 0, output: 'compiled' };
+  } };
+  const result = await buildEngine(sampleConfig, options);
+  assert.equal(result.installedDllFile, path.join(pluginDirectory, 'customfloat.dll'));
+  assert.deepEqual(fs.readFileSync(result.dllFile), fs.readFileSync(result.installedDllFile));
+  assert.deepEqual(fs.readFileSync(result.descriptionFile), fs.readFileSync(result.installedDescriptionFile));
+  const files = [result.descriptionFile, result.dllFile, result.installedDescriptionFile, result.installedDllFile];
+  const before = files.map((file) => fs.readFileSync(file));
+  const changed = configFor('Custom Float');
+  changed.descriptions.English.format = 'New descriptor';
+  await assert.rejects(buildEngine(changed, { ...options, commandRunner: async () => { throw new Error('compiler failed'); } }), /compiler failed/);
+  files.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
+  const rename = fs.renameSync;
+  fs.renameSync = (source, destination) => {
+    if (source.includes('.vofa-staged-') && destination === result.installedDllFile) throw new Error('DLL is in use');
+    return rename(source, destination);
+  };
+  try {
+    await assert.rejects(buildEngine(changed, options), (error) => error.code === 'ARTIFACT_COMMIT_FAILED');
+  } finally { fs.renameSync = rename; }
+  files.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index]));
+  assert.deepEqual(fs.readdirSync(pluginDirectory).sort(), ['customfloat.dll', 'customfloat.json']);
+});
+
+test('invalid VOFA+ target prevents build writes and install staging failures preserve prior outputs', async (t) => {
+  const repo = createFixtureRepository(t);
+  await assert.rejects(buildEngine(sampleConfig, { repoRoot: repo, vofaPath: repo }), (error) => error.code === 'ENVIRONMENT_NOT_READY');
+  assert.equal(fs.existsSync(path.join(repo, 'dataengines/customfloat')), false);
+  if (!getEnvironment(repo).ready) { t.skip('Exact Windows Qt/MSVC toolchain unavailable'); return; }
+  const installation = path.join(repo, 'vofa');
+  fs.mkdirSync(path.join(installation, 'plugins/dataengines'), { recursive: true });
+  const initial = generateEngine(sampleConfig, { repoRoot: repo });
+  const prior = fs.readFileSync(initial.descriptionFile);
+  const copy = fs.copyFileSync;
+  fs.copyFileSync = (source, destination, flags) => {
+    if (destination.startsWith(installation) && destination.includes('.vofa-staged-')) throw new Error('access denied');
+    return copy(source, destination, flags);
+  };
+  try {
+    await assert.rejects(buildEngine(sampleConfig, { repoRoot: repo, vofaPath: installation,
+      commandRunner: async (_environment, _project, buildDirectory) => {
+        fs.writeFileSync(path.join(buildDirectory, 'customfloat.dll'), 'new dll');
+        return { command: 'test', exitCode: 0, output: '' };
+      } }), /access denied/);
+  } finally { fs.copyFileSync = copy; }
+  assert.deepEqual(fs.readFileSync(initial.descriptionFile), prior);
+  assert.equal(fs.existsSync(path.join(repo, 'dataengines/generated/win64/customfloat.dll')), false);
+  assert.deepEqual(fs.readdirSync(path.join(installation, 'plugins/dataengines')), []);
 });

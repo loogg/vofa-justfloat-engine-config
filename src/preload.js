@@ -3,6 +3,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const channels = Object.freeze({
+  getAppInfo: 'app:info',
   getEnvironment: 'environment:get',
   openConfig: 'config:open',
   saveConfig: 'config:save',
@@ -16,6 +17,7 @@ const channels = Object.freeze({
 });
 
 const engineApi = Object.freeze({
+  getAppInfo: () => ipcRenderer.invoke(channels.getAppInfo),
   getEnvironment: (repoRootOrEnvironment) =>
     ipcRenderer.invoke(channels.getEnvironment, repoRootOrEnvironment),
   openConfig: (repoRoot) => ipcRenderer.invoke(channels.openConfig, repoRoot),

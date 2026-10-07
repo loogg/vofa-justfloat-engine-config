@@ -6,12 +6,15 @@
 
 - 本项目是独立发布的 Electron/Node.js Windows 桌面工具。
 - UI 负责可视化配置，Qt 代码仅作为生成的数据引擎源码。
-- 工具生成的引擎源码位于用户所选 Vodka 仓库的 `dataengines/<target>/`；运行产物位于 `dataengines/generated/`。
+- 工具生成的引擎源码位于用户所选 Vodka 仓库的 `dataengines/<target>/`；运行产物位于 `dataengines/generated/`。设置 VOFA+ 安装目录后，Release 构建同时将 DLL 和 JSON 成对安装到 `<vofaPath>/plugins/dataengines/`。
 
 ## 技术与设计约束
 
 - Electron 主进程使用 CommonJS，渲染进程保持 `contextIsolation: true`、`nodeIntegration: false`。
-- 所有文件系统、构建、仓库和对话框操作都必须通过受限 preload/IPC 完成。
+- Renderer 必须与原生运行时解耦，通过统一的 `backendApi` 访问后端能力。原生模式通过受限 preload/IPC 访问 Backend Service；Browser Review Mode 通过仅限开发环境的本地 Bridge 访问同一套真实 Backend Service。
+- 所有文件系统、构建、仓库和对话框操作都必须由 Backend Service 与对应运行时适配器完成。Bridge 仅监听本机，校验 Host、Origin 和会话令牌，不得进入或暴露于生产环境。
+- Mock/Fixture 仅用于构造异常、空状态、大数据量等难以稳定复现的界面状态，不能替代真实 Bridge。
+- Browser Review URL 必须显式标记传输模式（`?transport=bridge`），界面同步显示实际模式。不支持的模式必须明确报错；若以后加入 Mock，使用 `?transport=mock&fixture=<scenario>` 标记场景。参数不替代生产隔离和后端权限校验。
 - UI 采用 Microsoft Fluent 2 / Win11 工程工具风格：紧凑、扁平、清晰、低装饰；不使用渐变、玻璃拟态、大型营销区或手绘 SVG。
 - UI 图标优先使用 `assets/icons/` 中的 Microsoft Fluent UI System Icons。
 - `uint32` 输出到 VOFA+ 的 `QVector<float>` 时可能损失超过 24-bit 的整数精度，界面和描述必须保留提示。
@@ -41,7 +44,9 @@ node --check src/generator.js
 node --check src/renderer/renderer.js
 ```
 
-- UI 变更必须验证 1306×781 和 980×680，不得出现页面级横向溢出、缺图或控制台错误。
+- UI 变更完成后必须启动 `npm run review`，使用内置浏览器实际查看并操作界面；优先使用真实 Bridge。审查视觉效果、层级、间距、对齐、一致性，以及点击、输入、菜单、弹窗、滚动和相关 Empty / Loading / Error / Disabled 状态。发现问题直接修改并重新审查，持续迭代直到收敛。
+- 响应式审查必须覆盖最小窗口 980×680、典型尺寸 1306×781 和布局断点附近的尺寸，不得出现页面级横向溢出、缺图或控制台错误。
+- Browser Review 负责 Renderer 的交互与视觉审查；Electron 特有能力（原生文件/目录对话框、preload/IPC、系统打开路径等）仍需在真实桌面应用中验证。自动化 E2E/回归测试不得替代上述审查。
 - 数据引擎生成变更必须执行 Qt 5.14.2 MSVC2017 x64 Release 构建和 `plugin-smoke`。
 - 构建失败不得让旧 DLL 与新 JSON 形成错配；运行产物必须成对提交或回滚。
 

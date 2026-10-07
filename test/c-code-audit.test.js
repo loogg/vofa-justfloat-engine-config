@@ -2,16 +2,16 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
 const { generateEngine } = require('../src/generator');
 
+fs.mkdirSync(path.resolve(__dirname, '../scratch/tests'), { recursive: true });
 const fixtureRepositoryRoot = path.join(__dirname, 'fixtures', 'vofa-repository');
 
 function createFixtureRepository(t) {
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vofa-c-audit-test-'));
+  const temporaryRoot = fs.mkdtempSync(path.join(path.resolve(__dirname, '../scratch/tests'), 'vofa-c-audit-test-'));
   const resolvedTempRoot = path.resolve(temporaryRoot);
   t.after(() => fs.rmSync(resolvedTempRoot, { recursive: true, force: true }));
 

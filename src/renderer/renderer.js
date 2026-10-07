@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const api = window.engineApi || window.justFloatBuilder || null;
+  const api = window.backendApi;
   const MAX_WORDS = 256;
   const CONFIG_VERSION = 2;
   const ENV_STORAGE_KEY = "justfloat-engine-builder.environment.v2";
@@ -109,7 +109,7 @@
 
   const ids = [
     "workspace", "unsaved-indicator", "load-config", "save-config", "repo-root-preview", "browse-repo",
-    "dataengines-preview", "open-environment", "environment-status-icon", "environment-summary",
+    "vofa-path-preview", "browse-vofa", "clear-vofa", "installed-path", "env-vofa-path", "dataengines-preview", "open-environment", "environment-status-icon", "environment-summary",
     "engine-name", "word-count", "word-count-minus", "word-count-plus", "frame-byte-count",
     "derived-target", "derived-class", "derived-dll", "derived-json", "engine-error", "stat-words",
     "stat-fields", "stat-used", "layout-stat-words", "layout-stat-fields", "generate-descriptions", "description-auto-sync", "description-sync-toggle", "description-sync-label", "description-tabs", "description-language-name", "description-format",
@@ -155,7 +155,7 @@
 
   let refreshLayoutSplitter = null;
 
-  const CURRENT_APP_VERSION = "1.7.1";
+  let currentAppVersion = "";
   const GITHUB_REPO_URL = "https://github.com/loogg/vofa-justfloat-engine-config";
   const GITHUB_RELEASES_URL = "https://github.com/loogg/vofa-justfloat-engine-config/releases";
 
@@ -420,6 +420,9 @@
       : value || {};
     const environment = {
       repoRoot: stringValue(source.repoRoot),
+      vofaPath: stringValue(source.vofaPath),
+      vofaValid: source.vofaValid,
+      vofaPluginsDir: stringValue(source.vofaPluginsDir),
       dataEnginesDir: stringValue(source.dataEnginesDir),
       qmakePath: stringValue(source.qmakePath),
       jomPath: stringValue(source.jomPath),
@@ -449,6 +452,7 @@
     const environment = normalizeEnvironment(value);
     return {
       repoRoot: environment.repoRoot,
+      vofaPath: environment.vofaPath,
       dataEnginesDir: environment.dataEnginesDir,
       qmakePath: environment.qmakePath,
       jomPath: environment.jomPath,
@@ -471,6 +475,7 @@
     if (!environment.qmakePath) buildMissing.push("qmake.exe");
     if (!environment.jomPath) buildMissing.push("jom.exe / nmake.exe");
     if (!environment.vcVarsPath) buildMissing.push("vcvarsall.bat");
+    if (environment.vofaPath && environment.vofaValid === false) buildMissing.push("有效的 VOFA+ 安装目录");
     if (environment.qmakePath && environment.isRequestedQtKit === false) {
       buildMissing.push("Qt 5.14.2 MSVC2017 64-bit qmake.exe");
     }
@@ -484,7 +489,8 @@
     environment.missing.forEach((item) => {
       const lower = item.toLowerCase();
       if (lower.includes("repository")) return;
-      const known = lower.includes("qmake") || lower.includes("qt 5.14.2") || lower.includes("exact qt")
+      const known = lower.includes("installation") ? "有效的 VOFA+ 安装目录"
+        : lower.includes("qmake") || lower.includes("qt 5.14.2") || lower.includes("exact qt")
         ? "Qt 5.14.2 MSVC2017 64-bit qmake.exe"
         : lower.includes("jom") || lower.includes("nmake")
           ? "jom.exe / nmake.exe"
@@ -1392,6 +1398,8 @@
     const readiness = environmentReadiness(environment);
     dom["repo-root-preview"].value = environment.repoRoot;
     dom["dataengines-preview"].value = environment.dataEnginesDir;
+    dom["vofa-path-preview"].value = environment.vofaPath;
+    dom["clear-vofa"].disabled = !environment.vofaPath || state.busy || state.environmentScanning;
     const statusIcon = dom["environment-status-icon"];
     if (!state.environmentLoaded || state.environmentScanning) {
       statusIcon.className = "status-icon";
@@ -1434,6 +1442,9 @@
     dom["source-path"].title = source;
     dom["generated-path"].textContent = generated;
     dom["generated-path"].title = generated;
+    const installed = environment.vofaPath ? joinPath(joinPath(environment.vofaPath, "plugins"), "dataengines") : "未设置，仅输出到仓库";
+    dom["installed-path"].textContent = installed;
+    dom["installed-path"].title = installed;
   }
 
   function renderValidation() {
@@ -1489,7 +1500,7 @@
       }
     }
 
-    const configBlocked = state.busy || errors.length > 0 || !api;
+    const configBlocked = state.busy || state.environmentScanning || errors.length > 0 || !api;
     dom["generate-only"].disabled = configBlocked || !readiness.generationReady;
     dom["generate-build"].disabled = configBlocked || !readiness.buildReady;
     dom["generate-only"].title = !readiness.generationReady ? `缺少：${readiness.generationMissing.join("、")}` : "";
@@ -1499,7 +1510,13 @@
     dom["fill-floats"].disabled = state.busy;
     dom["clear-word"].disabled = state.busy;
     dom["delete-word"].disabled = state.busy || state.wordCountChangePending || state.config.wordCount <= 1;
-    dom["browse-repo"].disabled = state.busy || !api;
+    dom["browse-repo"].disabled = state.busy || state.environmentScanning || !api;
+    dom["browse-vofa"].disabled = state.busy || state.environmentScanning || !api;
+    dom["clear-vofa"].disabled = state.busy || state.environmentScanning || !state.environment.vofaPath;
+    ["open-environment", "open-environment-build", "save-environment", "refresh-environment"].forEach((id) => {
+      dom[id].disabled = state.busy || state.environmentScanning;
+    });
+    document.querySelectorAll("[data-select-path]").forEach((button) => { button.disabled = state.busy || state.environmentScanning; });
     const wordCountBlocked = state.busy || state.wordCountChangePending;
     dom["word-count"].disabled = wordCountBlocked;
     dom["word-count-minus"].disabled = wordCountBlocked || state.config.wordCount <= 1;
@@ -1896,8 +1913,11 @@
       appendLog(message, "success");
       if (result && typeof result === "object") {
         if (result.sourceDirectory) appendLog(`源码目录：${result.sourceDirectory}`, "info");
-        if (result.descriptionFile) appendLog(`JSON 描述：${result.descriptionFile}`, "info");
+        if (result.descriptionFile && !result.descriptionDeferred) appendLog(`JSON 描述：${result.descriptionFile}`, "info");
+        if (result.descriptionDeferred) appendLog("已有运行产物保持不变；JSON 描述将在 Release 构建成功后更新。", "info");
         if (result.dllFile) appendLog(`Release DLL：${result.dllFile}`, "success");
+        if (result.installedDllFile) appendLog(`VOFA+ DLL：${result.installedDllFile}`, "success");
+        if (result.installedDescriptionFile) appendLog(`VOFA+ JSON：${result.installedDescriptionFile}`, "success");
         if (result.outputDir) appendLog(`输出目录：${result.outputDir}`, "info");
       }
       showToast(action === "build" ? "Release 构建成功" : "源码生成成功", message, "success");
@@ -1915,7 +1935,7 @@
     try {
       await api.openGenerated(publicEnvironment());
     } catch (error) {
-      handleError("无法打开 generated 目录", error);
+      handleError("无法打开产物目录", error);
     }
   }
 
@@ -1943,8 +1963,8 @@
 
   function requireApi(method) {
     if (api && typeof api[method] === "function") return true;
-    showToast("Electron 接口不可用", `预加载接口 engineApi.${method}() 未就绪。`, "error");
-    appendLog(`缺少预加载接口：engineApi.${method}()`, "error");
+    showToast("后端接口不可用", `后端接口 ${method}() 未就绪。`, "error");
+    appendLog(`缺少后端接口：${method}()`, "error");
     return false;
   }
 
@@ -1953,7 +1973,7 @@
       const value = JSON.parse(localStorage.getItem(ENV_STORAGE_KEY) || "{}");
       if (!value || typeof value !== "object" || Array.isArray(value)) return {};
       return Object.fromEntries(
-        ["repoRoot", "qmakePath", "jomPath", "vcVarsPath"]
+        ["repoRoot", "vofaPath", "qmakePath", "jomPath", "vcVarsPath"]
           .filter((key) => typeof value[key] === "string" && value[key].trim())
           .map((key) => [key, value[key].trim()])
       );
@@ -1967,6 +1987,7 @@
       const normalized = publicEnvironmentFrom(environment);
       localStorage.setItem(ENV_STORAGE_KEY, JSON.stringify({
         repoRoot: normalized.repoRoot,
+        vofaPath: normalized.vofaPath,
         qmakePath: normalized.qmakePath,
         jomPath: normalized.jomPath,
         vcVarsPath: normalized.vcVarsPath
@@ -1993,10 +2014,11 @@
       candidate.repoRoot = stringValue(options.repoRoot);
       candidate.dataEnginesDir = joinPath(candidate.repoRoot, "dataengines");
     }
-    const hasSelectedEnvironment = Boolean(candidate.repoRoot || candidate.qmakePath || candidate.jomPath || candidate.vcVarsPath);
+    const hasSelectedEnvironment = Boolean(candidate.repoRoot || candidate.vofaPath || candidate.qmakePath || candidate.jomPath || candidate.vcVarsPath);
     const requestValue = hasSelectedEnvironment ? publicEnvironmentFrom(candidate) : undefined;
     state.environmentScanning = true;
     renderEnvironmentSummary();
+    renderValidation();
     if (dom["environment-dialog"].open) renderEnvironmentDialogStatus();
     try {
       state.environment = normalizeEnvironment(await api.getEnvironment(requestValue));
@@ -2034,6 +2056,7 @@
   function fillEnvironmentForm() {
     const environment = normalizeEnvironment(state.environment);
     dom["env-repo-root"].value = environment.repoRoot;
+    dom["env-vofa-path"].value = environment.vofaPath;
     dom["env-data-engines"].value = environment.dataEnginesDir;
     dom["env-qmake"].value = environment.qmakePath;
     dom["env-jom"].value = environment.jomPath;
@@ -2054,6 +2077,7 @@
     return normalizeEnvironment({
       ...state.environment,
       repoRoot: dom["env-repo-root"].value,
+      vofaPath: dom["env-vofa-path"].value,
       dataEnginesDir: dom["env-data-engines"].value,
       ...formValues,
       kitName: dom["env-kit-name"].value,
@@ -2115,6 +2139,7 @@
     const definitions = [
       { key: "repoRoot", aliases: ["repository"], label: "Vodka 仓库", value: environment.repoRoot, ready: Boolean(environment.repoRoot) && environment.repositoryValid !== false },
       { key: "dataEnginesDir", aliases: ["dataengines"], label: "Data Engines", value: environment.dataEnginesDir, ready: Boolean(environment.dataEnginesDir) && environment.repositoryValid !== false },
+      { key: "vofaPath", aliases: [], label: "VOFA+ 安装目录（可选）", value: environment.vofaPath || "未设置，仅输出到仓库", ready: !environment.vofaPath || environment.vofaValid !== false },
       { key: "qmakePath", aliases: ["qmake"], label: "qmake.exe", value: environment.qmakePath, ready: Boolean(environment.qmakePath) && environment.isRequestedQtKit !== false },
       { key: "jomPath", aliases: ["jom", "nmake"], label: "jom / nmake", value: environment.jomPath, ready: Boolean(environment.jomPath) },
       { key: "vcVarsPath", aliases: ["vcvars", "msvc"], label: "MSVC 环境", value: environment.vcVarsPath, ready: Boolean(environment.vcVarsPath) && environment.hasV141Toolset !== false },
@@ -2160,6 +2185,12 @@
       if (!selected) return;
       const selectedPath = typeof selected === "string" ? selected : stringValue(selected.path);
       if (!selectedPath) return;
+      if (kind === "vofaPath") {
+        const candidate = dom["environment-dialog"].open ? readEnvironmentForm() : normalizeEnvironment(state.environment);
+        candidate.vofaPath = selectedPath;
+        await detectEnvironment({ environment: candidate, ignoreStored: true, updateDialog: dom["environment-dialog"].open });
+        return;
+      }
       if (kind === "repoRoot") {
         const candidate = normalizeEnvironment({ ...state.environment, repoRoot: selectedPath, dataEnginesDir: joinPath(selectedPath, "dataengines") });
         await detectEnvironment({ environment: candidate, ignoreStored: true, updateDialog: dom["environment-dialog"].open });
@@ -2508,6 +2539,8 @@
       dom["log-state"].textContent = "日志已清空";
     });
 
+    dom["browse-vofa"].addEventListener("click", () => selectEnvironmentPath("vofaPath", dom["browse-vofa"]));
+    dom["clear-vofa"].addEventListener("click", () => detectEnvironment({ environment: { ...state.environment, vofaPath: "" }, ignoreStored: true }));
     dom["browse-repo"].addEventListener("click", () => selectEnvironmentPath("repoRoot", dom["browse-repo"]));
     dom["open-environment"].addEventListener("click", openEnvironmentDialog);
     dom["open-environment-build"].addEventListener("click", openEnvironmentDialog);
@@ -2515,7 +2548,7 @@
       dom["env-data-engines"].value = event.target.value.trim() ? joinPath(event.target.value.trim(), "dataengines") : "";
       renderEnvironmentDialogStatus();
     });
-    ["env-qmake", "env-jom", "env-vcvars"].forEach((id) => dom[id].addEventListener("input", renderEnvironmentDialogStatus));
+    ["env-vofa-path", "env-qmake", "env-jom", "env-vcvars"].forEach((id) => dom[id].addEventListener("input", renderEnvironmentDialogStatus));
     dom["environment-form"].addEventListener("submit", async (event) => {
       if (event.submitter && event.submitter.id === "save-environment") {
         event.preventDefault();
@@ -2601,10 +2634,10 @@
         showToast("发现新版本", `最新版本为 v${res.latestVersion}，点击前往下载。`, "info");
       } else if (res && res.success) {
         if (banner) banner.className = "about-status-banner is-latest";
-        if (text) text.textContent = `当前已是最新版本 (v${res.currentVersion || CURRENT_APP_VERSION})，暂无可用更新。`;
+        if (text) text.textContent = `当前已是最新版本 (v${res.currentVersion || currentAppVersion})，暂无可用更新。`;
         if (link) link.hidden = true;
         if (icon) icon.innerHTML = '<span class="icon icon-check"></span>';
-        showToast("已是最新版本", `当前运行版本为 v${res.currentVersion || CURRENT_APP_VERSION}。`, "success");
+        showToast("已是最新版本", `当前运行版本为 v${res.currentVersion || currentAppVersion}。`, "success");
       } else {
         if (banner) banner.className = "about-status-banner is-error";
         if (text) text.textContent = res && res.error ? res.error : "无法获取 GitHub 更新信息，请直接在浏览器中查看。";
@@ -2655,11 +2688,15 @@
     render();
     if (!api) {
       state.environmentLoaded = true;
-      appendLog("未检测到 window.engineApi；可视化编辑可用，生成与构建功能已禁用。", "error");
+      appendLog("后端未连接；请启动桌面应用或开发环境的 Browser Review Mode。", "error");
       renderEnvironmentSummary();
       renderValidation();
       return;
     }
+    api.getAppInfo().then((info) => {
+      currentAppVersion = info.version;
+      dom["about-version-badge"].textContent = `当前版本 v${info.version}`;
+    }).catch((error) => appendLog(`无法读取应用信息：${errorMessage(error)}`, "warning"));
     detectEnvironment();
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "vofa-justfloat-engine-config",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "private": true,
   "author": "VOFA+",
   "description": "Visual configuration and Release builder for VOFA+ JustFloat-compatible data engines.",
@@ -11,7 +11,8 @@
     "test": "node --test",
     "verify:version": "node scripts/verify_version.js",
     "pack:win": "node scripts/package_windows.js",
-    "dist": "npm run verify:version && npm run pack:win"
+    "dist": "npm run verify:version && npm run pack:win",
+    "review": "node scripts/browser_review.js --development"
   },
   "devDependencies": {
     "@fluentui/svg-icons": "1.1.338",

@@ -1824,6 +1824,10 @@ select option {
   color: #e2e8f0;
 }
 
+.build-console-section .console-log-panel .log-toolbar small {
+  color: #bac1cc;
+}
+
 .build-console-section .console-log-output {
   flex: 1 1 auto !important;
   height: 100% !important;
@@ -1846,7 +1850,7 @@ select option {
 }
 
 .console-log-output .log-line time {
-  color: #64748b;
+  color: #9aa7bb;
   flex-shrink: 0;
 }
 
@@ -1861,6 +1865,10 @@ select option {
 .console-log-output .log-line.is-error {
   color: #fca5a5;
 }
+
+.console-log-output .log-line.is-success span { color: #a6e3a1; }
+.console-log-output .log-line.is-warning span { color: #fde047; }
+.console-log-output .log-line.is-error span { color: #fca5a5; }
 
 @media (max-width: 1080px) {
   .build-split-view {

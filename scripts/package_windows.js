@@ -59,3 +59,9 @@ console.log('Windows artifacts:');
 console.log(`- ${portableDirectory}`);
 console.log(`- ${portableZip}`);
 console.log(`- ${setupExe}`);
+
+const verification = childProcess.spawnSync(executable, [path.join(packageRoot, 'scripts/verify_version.js'), '--artifacts'], {
+  cwd: packageRoot, stdio: 'inherit', shell: false
+});
+if (verification.error) throw verification.error;
+if (verification.status !== 0) process.exit(verification.status || 1);

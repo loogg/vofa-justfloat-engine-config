@@ -111,6 +111,20 @@
                     <span class="win-badge">只读</span>
                   </div>
                 </div>
+                <div class="settings-card">
+                  <div class="settings-card-info">
+                    <span class="settings-card-icon" aria-hidden="true"><span class="icon icon-folder-open"></span></span>
+                    <div class="settings-card-text">
+                      <strong class="settings-card-title">VOFA+ 安装目录</strong>
+                      <span class="settings-card-desc">可选；构建成功后将 DLL 和 JSON 放入 plugins/dataengines</span>
+                    </div>
+                  </div>
+                  <div class="settings-card-action repo-action">
+                    <input class="win-input" id="vofa-path-preview" type="text" readonly aria-readonly="true" aria-label="VOFA+ 安装目录" placeholder="未设置，仅输出到仓库" />
+                    <button class="button" id="browse-vofa" type="button" title="选择 VOFA+ 安装目录"><span class="icon icon-folder-open" aria-hidden="true"></span>浏览</button>
+                    <button class="icon-button" id="clear-vofa" type="button" aria-label="清除 VOFA+ 安装目录" title="清除 VOFA+ 安装目录"><span class="icon icon-dismiss" aria-hidden="true"></span></button>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -360,7 +374,7 @@
               <div class="settings-group-header">
                 <div class="settings-group-header-text">
                   <h2>输出位置</h2>
-                  <p>源码与 justfloat 同级，DLL 和描述文件输出到 generated。</p>
+                  <p>源码与 justfloat 同级；设置 VOFA+ 目录后，构建产物同时成对安装。</p>
                 </div>
               </div>
               <div class="settings-cards">
@@ -369,6 +383,7 @@
                     <div class="output-list">
                       <div><span class="icon icon-code" aria-hidden="true"></span><strong>引擎源码</strong><code id="source-path">dataengines/packedfloat</code></div>
                       <div><span class="icon icon-build" aria-hidden="true"></span><strong>构建产物</strong><code id="generated-path">dataengines/generated</code></div>
+                      <div><span class="icon icon-folder-open" aria-hidden="true"></span><strong>VOFA+ 插件</strong><code id="installed-path">未设置，仅输出到仓库</code></div>
                     </div>
                     <div class="output-actions">
                       <span class="kit-badge" id="kit-badge">Desktop_Qt_5_14_2_MSVC2017_64bit-Release</span>
@@ -415,7 +430,7 @@
                   <img class="about-logo" src="../../assets/app-icon.png" alt="" width="48" height="48" />
                   <div class="about-identity-text">
                     <h2 class="about-title">VOFA+ JustFloat 引擎生成器</h2>
-                    <span class="version-pill" id="about-version-badge">当前版本 v1.7.1</span>
+                    <span class="version-pill" id="about-version-badge">正在读取版本…</span>
                   </div>
                 </div>
                 <div class="about-actions">
@@ -486,6 +501,7 @@
           <div class="environment-fields">
             <label class="field-control path-field"><span class="field-label">仓库根目录</span><div><input id="env-repo-root" type="text" spellcheck="false" placeholder="Vodka 仓库根目录" /><button type="button" data-select-path="repoRoot"><span class="icon icon-folder-open"></span>浏览</button></div></label>
             <label class="field-control path-field path-field-readonly"><span class="field-label">Data Engines 目录（自动派生）</span><div><input id="env-data-engines" type="text" spellcheck="false" readonly aria-readonly="true" /><span>只读</span></div></label>
+            <label class="field-control path-field"><span class="field-label">VOFA+ 安装目录（可选）</span><div><input id="env-vofa-path" type="text" spellcheck="false" placeholder="包含 plugins/dataengines 的目录" /><button type="button" data-select-path="vofaPath"><span class="icon icon-folder-open"></span>浏览</button></div></label>
             <label class="field-control path-field"><span class="field-label">qmake.exe</span><div><input id="env-qmake" type="text" spellcheck="false" /><button type="button" data-select-path="qmakePath"><span class="icon icon-folder-open"></span>浏览</button></div></label>
             <label class="field-control path-field"><span class="field-label">jom.exe / nmake.exe</span><div><input id="env-jom" type="text" spellcheck="false" /><button type="button" data-select-path="jomPath"><span class="icon icon-folder-open"></span>浏览</button></div></label>
             <label class="field-control path-field"><span class="field-label">Visual Studio vcvarsall.bat</span><div><input id="env-vcvars" type="text" spellcheck="false" /><button type="button" data-select-path="vcVarsPath"><span class="icon icon-folder-open"></span>浏览</button></div></label>
@@ -518,6 +534,7 @@
     </dialog>
 
     <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <script src="./api.js"></script>
     <script src="./renderer.js"></script>
   </body>
 </html>
