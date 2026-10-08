@@ -5,6 +5,7 @@ const path = require('node:path');
 const { buildEngine, generateEngine, getEnvironment, inspectRepositoryLayout, inspectVofaInstallation, normalizeConfig, validateConfig } = require('../generator');
 const { queryGitHubRelease, isSafeExternalUrl } = require('./updates');
 const { channels, argumentCounts } = require('./contract');
+const protocol = require('../protocol');
 const maxConfigBytes = 1024 * 1024;
 const requestedKit = 'Desktop_Qt_5_14_2_MSVC2017_64bit-Release';
 const selectablePaths = Object.freeze({
@@ -67,8 +68,15 @@ function createBackendService(runtime) {
     return errors.map((error) => String(error)).join('; ');
   }
 
-  async function prepareConfig(config) {
+  async function prepareConfig(config, allowDraft = false) {
     assertSafeConfigPayload(config);
+    if (allowDraft && Object.hasOwn(config, 'canvas')) {
+      const normalized = normalizeConfig(config);
+      const { canvas: _canvas, ...base } = normalized;
+      const validation = validateConfig(base);
+      if (!validation.valid) throw new TypeError(`Invalid engine configuration: ${formatValidationErrors(validation.errors)}`);
+      return normalized;
+    }
     const validation = await validateConfig(config);
 
     if (!isPlainObject(validation) || validation.valid !== true) {
@@ -213,7 +221,9 @@ function createBackendService(runtime) {
       descriptionAutoSync: config.descriptionAutoSync === true,
       descriptions: config.descriptions,
       wordCount: config.wordCount,
-      fields: config.fields
+      fields: config.fields,
+      ...(config.protocol ? { protocol: config.protocol } : {}),
+      ...(config.canvas ? { canvas: config.canvas } : {})
     };
   }
 
@@ -313,6 +323,12 @@ function createBackendService(runtime) {
   }
 
   function registerServiceHandlers() {
+    registerHandler(channels.previewFrame, 2, async (_event, config, sample) => {
+      const normalized = await prepareConfig(config);
+      if (!normalized.protocol) throw new TypeError('试解析仅用于固定结构协议。JustFloat 保持原有收帧规则。');
+      if (typeof sample !== 'string' || sample.length > 800000) throw new TypeError('试解析数据需为不超过 800000 字符的十六进制文本。');
+      return protocol.preview(normalized, sample);
+    });
     registerHandler(channels.getEnvironment, 1, async (_event, repoRoot) => {
       return getEnvironment(environmentScanRequest(repoRoot));
     });
@@ -346,14 +362,14 @@ function createBackendService(runtime) {
         throw new Error(`Cannot read configuration: ${error.message}`);
       }
 
-      const normalized = await prepareConfig(unwrapConfigDocument(config));
+      const normalized = await prepareConfig(unwrapConfigDocument(config), true);
       await rememberConfigDirectory(repoRoot, filePath);
       return { filePath, config: normalized };
     });
 
     registerHandler(channels.saveConfig, 2, async (_event, config, selectedRepoRoot) => {
       const repoRoot = optionalRepoRoot(selectedRepoRoot);
-      const normalized = await prepareConfig(config);
+      const normalized = await prepareConfig(config, true);
       const safeTargetName = String(normalized.targetName || 'customengine')
         .replace(/[^A-Za-z0-9_-]/g, '_');
       const result = await runtime.dialog.showSaveDialog({

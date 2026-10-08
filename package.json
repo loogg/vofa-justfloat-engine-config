@@ -1,12 +1,13 @@
 {
   "name": "vofa-justfloat-engine-config",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "private": true,
   "author": "VOFA+",
-  "description": "Visual configuration and Release builder for VOFA+ JustFloat-compatible data engines.",
+  "description": "Visual protocol configuration and Release builder for VOFA+ data engines.",
   "main": "src/main.js",
   "type": "commonjs",
   "scripts": {
+    "postinstall": "node scripts/sync_node_red.js",
     "start": "electron .",
     "test": "node --test",
     "verify:version": "node scripts/verify_version.js",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "@fluentui/svg-icons": "1.1.338",
+    "@node-red/editor-client": "5.0.8",
     "electron": "44.0.0",
     "electron-builder": "26.15.3"
   },
@@ -33,6 +35,8 @@
       "assets/app-icon.png",
       "assets/app-icon.ico",
       "assets/icons/**/*",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md",
       "package.json"
     ],
     "win": {

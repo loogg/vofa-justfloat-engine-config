@@ -10,7 +10,7 @@ const { createBackendService } = require('../src/backend/service');
 
 const root = path.resolve(__dirname, '..');
 const maxBodyBytes = 2 * 1024 * 1024; // Config limit plus validated environment paths.
-const contentTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const contentTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf' };
 
 async function readJson(request) {
   if (request.headers['content-type'] !== 'application/json') throw new Error('Expected application/json');
@@ -71,6 +71,9 @@ async function startBrowserReview(options = {}) {
         return send(response, 403, { error: 'Untrusted Bridge origin or host' });
       }
       const url = new URL(request.url, origin);
+      if (url.pathname === '/src/renderer/node-red/index.html') {
+        response.setHeader('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; frame-ancestors 'self'; base-uri 'none'; form-action 'self'");
+      }
       if (url.pathname.startsWith('/api/')) {
         if (request.headers['x-review-token'] !== token || request.headers.origin !== origin) {
           return send(response, 403, { error: 'Bridge authentication required' });
@@ -123,8 +126,17 @@ async function startBrowserReview(options = {}) {
       const rendererFiles = { '/': 'src/renderer/index.html', '/src/renderer/index.html': 'src/renderer/index.html',
         '/src/renderer/renderer.js': 'src/renderer/renderer.js', '/src/renderer/api.js': 'src/renderer/api.js',
         '/src/renderer/styles.css': 'src/renderer/styles.css', '/__review/client.js': 'scripts/browser_review_client.js',
+        '/src/protocol.js': 'src/protocol.js',
+        '/src/renderer/workbench.css': 'src/renderer/workbench.css',
+        '/src/protocol-flow.js': 'src/protocol-flow.js', '/src/renderer/node-red-host.js': 'src/renderer/node-red-host.js',
+        '/src/renderer/node-red-host.css': 'src/renderer/node-red-host.css',
         '/__review/styles.css': 'scripts/browser_review.css' };
       let relative = rendererFiles[url.pathname];
+      if (url.pathname.startsWith('/src/renderer/node-red/')) {
+        relative = decodeURIComponent(url.pathname.slice(1));
+        const directory = path.resolve(root, 'src/renderer/node-red');
+        if (!path.resolve(root, relative).startsWith(`${directory}${path.sep}`)) return send(response, 403, { error: 'Invalid editor asset path' });
+      }
       if (url.pathname.startsWith('/assets/')) relative = decodeURIComponent(url.pathname.slice(1));
       if (!relative) return send(response, 404, { error: 'Unknown review asset' });
       const file = path.resolve(root, relative);

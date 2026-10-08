@@ -83,7 +83,7 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#f5f5f5',
-    title: 'JustFloat 自定义数据引擎生成器',
+    title: 'VOFA+ 协议引擎生成器',
     icon: appIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

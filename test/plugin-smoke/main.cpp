@@ -3,6 +3,10 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QPluginLoader>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
 
 #include <cmath>
 
@@ -24,24 +28,63 @@ bool equals(float actual, float expected)
 int main(int argc, char *argv[])
 {
     QCoreApplication application(argc, argv);
-    if (application.arguments().size() != 2)
-        return fail(QStringLiteral("usage: plugin-smoke <custom-engine.dll>"), 2);
+    if (application.arguments().size() < 2 || application.arguments().size() > 3)
+        return fail(QStringLiteral("usage: plugin-smoke <custom-engine.dll> [cases.json]"), 2);
+    const bool fixed = application.arguments().size() == 3;
 
     QPluginLoader loader(application.arguments().at(1));
     const QString iid = loader.metaData().value(QStringLiteral("IID")).toString();
-    if (iid != QStringLiteral("VOFA+.Plugin.CustomFloat"))
+    if (!fixed && iid != QStringLiteral("VOFA+.Plugin.CustomFloat"))
         return fail(QStringLiteral("unexpected plugin IID: %1").arg(iid), 4);
 
     QObject *plugin = loader.instance();
     if (!plugin)
         return fail(QStringLiteral("plugin load failed: %1").arg(loader.errorString()), 5);
 
-    if (QString::fromLatin1(plugin->metaObject()->className()) != QStringLiteral("CustomFloat"))
+    if (!fixed && QString::fromLatin1(plugin->metaObject()->className()) != QStringLiteral("CustomFloat"))
         return fail(QStringLiteral("plugin class was not independently renamed"), 6);
 
     DataEngineInterface *engine = qobject_cast<DataEngineInterface *>(plugin);
     if (!engine)
         return fail(QStringLiteral("plugin does not implement DataEngineInterface"), 7);
+
+    if (fixed) {
+        QFile casesFile(application.arguments().at(2));
+        if (!casesFile.open(QIODevice::ReadOnly)) return fail(QStringLiteral("cannot open cases.json"), 20);
+        const QJsonObject definition = QJsonDocument::fromJson(casesFile.readAll()).object();
+        const QString className = definition.value(QStringLiteral("className")).toString();
+        if (className.isEmpty() || iid != QStringLiteral("VOFA+.Plugin.") + className
+                || QString::fromLatin1(plugin->metaObject()->className()) != className)
+            return fail(QStringLiteral("fixed engine plugin identity mismatch"), 21);
+        const QJsonArray cases = definition.value(QStringLiteral("cases")).toArray();
+        if (cases.isEmpty()) return fail(QStringLiteral("no fixed-engine smoke cases supplied"), 22);
+        for (int index = 0; index < cases.size(); ++index) {
+            const QJsonObject entry = cases.at(index).toObject();
+            QByteArray input = QByteArray::fromHex(entry.value(QStringLiteral("hex")).toString().toLatin1());
+            engine->ProcessingDatas(input.data(), input.size());
+            const QList<Frame> actual = engine->frame_list();
+            const int consumed = actual.isEmpty() ? 0 : actual.last().end_index_ + 1;
+            if (consumed != entry.value(QStringLiteral("consumed")).toInt())
+                return fail(QStringLiteral("case %1 consumption mismatch: %2").arg(index).arg(consumed), 23);
+            QList<Frame> valid;
+            for (const Frame &frame : actual) {
+                if (frame.start_index_ < 0 || frame.end_index_ >= input.size() || frame.end_index_ < frame.start_index_)
+                    return fail(QStringLiteral("case %1 invalid frame bounds").arg(index), 24);
+                if (frame.is_valid_) valid.append(frame);
+            }
+            const QJsonArray expected = entry.value(QStringLiteral("channels")).toArray();
+            if (valid.size() != expected.size()) return fail(QStringLiteral("case %1 frame count mismatch").arg(index), 25);
+            for (int frame = 0; frame < valid.size(); ++frame) {
+                const QJsonArray channels = expected.at(frame).toArray();
+                if (valid.at(frame).datas_.size() != channels.size()) return fail(QStringLiteral("case %1 channel count mismatch").arg(index), 26);
+                for (int channel = 0; channel < channels.size(); ++channel)
+                    if (!equals(valid.at(frame).datas_.at(channel), float(channels.at(channel).toDouble())))
+                        return fail(QStringLiteral("case %1 ch%2 value mismatch").arg(index).arg(channel), 27);
+            }
+        }
+        qInfo() << "fixed engine smoke test passed:" << className << cases.size() << "cases";
+        return 0;
+    }
 
     // Unsigned/bit fields, signed fields (-128, -32768, -1, -4), then the tail.
     char validFrame[] = {

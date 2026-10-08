@@ -1,0 +1,29 @@
+body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif; }
+#red-ui-editor { position: absolute; inset: 0 0 27px; }
+#red-ui-header-logo { font-family: inherit; }
+#red-ui-header { background: #f3f3f3; border-bottom: 1px solid #c9c9c9; }
+#red-ui-header-logo, #red-ui-header-logo span { color: #444; font-size: 14px; }
+#red-ui-header-button-deploy, .red-ui-header-button-deploy-split { display: none !important; }
+#vofa-flow-status { position: absolute; bottom: 0; left: 0; right: 0; height: 26px; line-height: 26px; padding: 0 12px; font-size: 12px; color: #555; background: #f3f3f3; border-top: 1px solid #ccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#vofa-flow-status.is-error { color: #a4262c; background: #fff4f4; }
+.vofa-node-help { color: #666; font-size: 12px; line-height: 1.7; margin-top: 14px; }
+.vofa-mapping { display: grid; grid-template-columns: minmax(230px, 1fr) 180px; gap: 14px; min-width: 0; }
+.vofa-mapping-grid { display: grid; grid-template-columns: 42px repeat(8,minmax(20px,1fr)); gap: 3px; }
+.vofa-mapping-grid .byte-label { font: 11px monospace; padding: 8px 0; }
+.vofa-mapping-grid button { height: 30px; min-width: 0; border: 1px solid #ddd; background: #f5f5f5; border-radius: 3px; font: 11px monospace; padding: 0; }
+.vofa-mapping-grid button.has-field { background: #dcebf8; border-color: #adc6dc; color: #234c6b; }
+.vofa-mapping-grid button.is-selected { outline: 2px solid #d68427; outline-offset: -2px; }
+.vofa-mapping-fields { margin-top: 12px; }
+.vofa-mapping-fields button { display: block; width: 100%; text-align: left; margin-bottom: 5px; padding: 7px 8px; border: 1px solid #ddd; border-radius: 3px; background: #fff; font-size: 12px; }
+.vofa-mapping-form { min-width: 0; border-left: 1px solid #ddd; padding-left: 12px; }
+.vofa-mapping-form label { display: block; width: auto !important; font-size: 12px; margin-bottom: 6px; }
+.vofa-mapping-form input, .vofa-mapping-form select { width: 100% !important; height: 30px; box-sizing: border-box; margin-bottom: 10px; }
+.vofa-mapping-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.vofa-mapping-actions button { padding: 6px 10px; }
+.vofa-mapping-error { font-size: 12px; color: #b42a2a; margin: 8px 0; }
+.vofa-precision { font-size: 12px; color: #596571; padding: 8px 10px; background: #eef5fa; border: 1px solid #d4e3ed; margin-top: 12px; }
+.vofa-crc-custom { border-top: 1px solid #ddd; padding-top: 12px; margin-top: 12px; }
+.red-ui-tray-body:has(#vofa-word-mapping) { min-width: 0 !important; }
+.red-ui-tray-body:has(#vofa-word-mapping) #dialog-form { width: auto; }
+#red-ui-palette[data-vofa-kind=fixed] [data-palette-type="vofa-justfloat"],
+#red-ui-palette[data-vofa-kind=justfloat] .red-ui-palette-node:not([data-palette-type="vofa-word"]):not([data-palette-type="vofa-justfloat"]):not([data-palette-type="vofa-output"]) { display: none !important; }

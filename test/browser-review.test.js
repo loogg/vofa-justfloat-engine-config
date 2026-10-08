@@ -87,6 +87,23 @@ test('review URLs declare Bridge and reject unsupported or ambiguous transport s
   }
 });
 
+test('native Node-RED assets have isolated CSP and cannot escape their asset directory', async (t) => {
+  const bridge = await startBrowserReview({ development: true });
+  t.after(() => bridge.close());
+  const editor = await fetch(`${bridge.origin}/src/renderer/node-red/index.html`);
+  assert.equal(editor.status, 200);
+  assert.match(editor.headers.get('content-security-policy'), /frame-ancestors 'self'/);
+  assert.match(editor.headers.get('content-security-policy'), /script-src 'self';/);
+  const rootPage = await fetch(bridge.reviewUrl);
+  assert.match(rootPage.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.doesNotMatch(rootPage.headers.get('content-security-policy'), /unsafe-inline/);
+  const vendor = await fetch(`${bridge.origin}/src/renderer/node-red/vendor/red/red.min.js`);
+  assert.equal(vendor.status, 200);
+  assert.match(vendor.headers.get('content-type'), /text\/javascript/);
+  assert.equal((await fetch(`${bridge.origin}/src/renderer/node-red/..%2f..%2f..%2fpackage.json`)).status, 403);
+  assert.equal((await fetch(`${bridge.origin}/src/main.js`)).status, 404);
+});
+
 test('Backend Service rejects invalid path kinds, forged environment keys and invalid external URLs', async () => {
   const backend = createBackendService({ mode: 'test' });
   await assert.rejects(backend.invoke('selectPath', ['arbitrary-file']), /kind must/);

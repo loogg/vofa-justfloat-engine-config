@@ -88,7 +88,7 @@
     try { return (await pending).result; }
     finally { try { await receiveEvents(); } finally { active -= 1; } }
   }
-  const methods = ["getAppInfo", "getEnvironment", "openConfig", "saveConfig", "selectPath", "generate", "build", "openGenerated", "checkUpdate", "openExternal"];
+  const methods = ["getAppInfo", "getEnvironment", "openConfig", "saveConfig", "selectPath", "generate", "previewFrame", "build", "openGenerated", "checkUpdate", "openExternal"];
   window.browserReviewApi = Object.freeze({ ...Object.fromEntries(methods.map((method) => [method, (...args) => invoke(method, ...args)])),
     onBuildLog(callback) { if (typeof callback !== "function") throw new TypeError("Build log callback must be a function"); listeners.add(callback); return () => listeners.delete(callback); }
   });

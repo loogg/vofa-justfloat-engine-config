@@ -114,7 +114,7 @@
     "derived-target", "derived-class", "derived-dll", "derived-json", "engine-error", "stat-words",
     "stat-fields", "stat-used", "layout-stat-words", "layout-stat-fields", "generate-descriptions", "description-auto-sync", "description-sync-toggle", "description-sync-label", "description-tabs", "description-language-name", "description-format",
     "description-example", "description-url", "word-list", "word-list-count", "selected-word-label", "word-channels-tags", "selection-summary",
-    "bit-grid", "editor-mode", "editor-word", "field-name", "field-type", "field-offset", "offset-hint",
+    "bit-grid", "byte-order-hint", "editor-mode", "editor-word", "field-name", "field-type", "field-offset", "offset-hint",
     "allocation-range", "allocation-size", "field-error", "commit-field", "delete-field", "reset-editor",
     "field-editor", "fill-floats", "clear-word", "delete-word", "channel-sort", "channel-count", "channel-table-body",
     "empty-table", "source-path", "generated-path", "kit-badge", "open-generated-inline", "log-output",
@@ -137,7 +137,7 @@
   const state = {
     config: createDefaultConfig(),
     environment: normalizeEnvironment({}),
-    activePage: "project",
+    activePage: "protocol",
     selectedWord: 0,
     editingId: null,
     collapsedWords: new Set(),
@@ -154,6 +154,7 @@
   };
 
   let refreshLayoutSplitter = null;
+  let protocolEditor = null;
 
   let currentAppVersion = "";
   const GITHUB_REPO_URL = "https://github.com/loogg/vofa-justfloat-engine-config";
@@ -187,10 +188,11 @@
 
   function createDefaultConfig() {
     const config = {
-      version: CONFIG_VERSION,
-      engineName: "Packed Float",
-      wordCount: 4,
-      fields: Array.from({ length: 4 }, (_, index) => ({
+      version: 3,
+      engineName: "Fixed Sensor",
+      wordCount: 2,
+      protocol: window.ProtocolModel.defaults(),
+      fields: Array.from({ length: 2 }, (_, index) => ({
         _uiId: nextUiId(),
         wordIndex: index,
         type: "float",
@@ -205,6 +207,10 @@
   }
 
   function generateDescriptionsFromLayout(config) {
+    if (config.protocol) {
+      try { return window.ProtocolModel.descriptions(config, config.engineName); }
+      catch (_error) { return config.descriptions || defaultDescriptions(); }
+    }
     const fields = [...config.fields].sort((left, right) =>
       left.wordIndex - right.wordIndex || left.bitOffset - right.bitOffset || left.name.localeCompare(right.name)
     );
@@ -396,7 +402,7 @@
 
   function publicConfig() {
     return {
-      version: CONFIG_VERSION,
+      version: state.config.version,
       engineName: state.config.engineName.trim(),
       wordCount: state.config.wordCount,
       fields: sortedFields().map(({ wordIndex, type, bitOffset, name }) => ({
@@ -405,6 +411,8 @@
         bitOffset,
         name: name.trim()
       })),
+      ...(state.config.protocol ? { protocol: window.ProtocolModel.normalize(state.config.protocol) } : {}),
+      ...(state.config.canvas ? { canvas: window.ProtocolFlow.normalize(state.config.canvas) } : {}),
       descriptionAutoSync: state.config.descriptionAutoSync === true,
       descriptions: Object.fromEntries(Object.keys(LANGUAGES).map((language) => [language, {
         format: rawString(state.config.descriptions[language]?.format),
@@ -534,6 +542,20 @@
   }
 
   function validateCandidate(config) {
+    if (config.canvas) {
+      const { canvas, ...base } = config;
+      return [...window.ProtocolFlow.compile(canvas).errors, ...validateCandidate(base)];
+    }
+    if (config.protocol) {
+      const { protocol, ...legacy } = config;
+      const wordMode = protocol.dataMode === "words";
+      const errors = validateCandidate({ ...legacy, version: CONFIG_VERSION,
+        wordCount: wordMode ? config.wordCount : 1,
+        fields: wordMode && config.fields.length ? config.fields : [{ wordIndex: 0, type: "float", bitOffset: 0, name: "" }]
+      });
+      try { return [...errors, ...window.ProtocolModel.validate(config)]; }
+      catch (error) { return errors.length ? errors : [error.message]; }
+    }
     const errors = [];
     const derived = deriveEngineNames(config.engineName);
     if (config.version !== CONFIG_VERSION) errors.push(`仅支持 version: ${CONFIG_VERSION} 的配置。`);
@@ -599,9 +621,11 @@
       throw new Error("配置文件内容为空或格式不正确。");
     }
     const version = Number(envelope.version || 1);
-    if (![1, 2].includes(version)) throw new Error(`不支持配置版本 ${version}。`);
+    if (![1, 2, 3].includes(version)) throw new Error(`不支持配置版本 ${version}。`);
     const config = {
-      version: CONFIG_VERSION,
+      version: version === 3 ? 3 : CONFIG_VERSION,
+      ...(version === 3 ? { protocol: window.ProtocolModel.normalize(envelope.protocol) } : {}),
+      ...(envelope.canvas ? { canvas: window.ProtocolFlow.normalize(envelope.canvas) } : {}),
       engineName: version === 1 ? migrateV1EngineName(envelope) : stringValue(envelope.engineName),
       wordCount: Number(envelope.wordCount),
       fields: Array.isArray(envelope.fields) ? envelope.fields.map((field) => {
@@ -622,7 +646,7 @@
       ...config,
       fields: config.fields.map(({ _uiId, ...field }) => field)
     });
-    if (errors.length) throw new Error(`配置校验失败：${errors.slice(0, 3).join("；")}`);
+    if (errors.length && !config.canvas) throw new Error(`配置校验失败：${errors.slice(0, 3).join("；")}`);
     config.fields = sortedFields(config.fields);
     if (config.descriptionAutoSync) config.descriptions = generateDescriptionsFromLayout(config);
     return config;
@@ -655,9 +679,11 @@
     renderOffsetOptions();
     renderEnvironmentSummary();
     renderValidation();
+    protocolEditor?.render();
   }
 
   function renderPage() {
+    document.body.classList.toggle("is-protocol-page", state.activePage === "protocol");
     document.querySelectorAll("[data-page]").forEach((page) => {
       const active = page.dataset.page === state.activePage;
       page.hidden = !active;
@@ -676,6 +702,10 @@
   }
 
   function selectPage(pageName, options = {}) {
+    if (pageName === "layout" && protocolEditor) {
+      pageName = "protocol";
+      if (state.config.protocol?.dataMode !== "custom") protocolEditor.showMapping(state.selectedWord);
+    }
     if (!document.querySelector(`[data-page="${pageName}"]`)) return;
     state.activePage = pageName;
     renderPage();
@@ -1192,7 +1222,7 @@
       .map(({ output, index }) => [output.wordIndex, index]));
     const body = dom["channel-table-body"];
     body.replaceChildren();
-    dom["channel-count"].textContent = "动态";
+    dom["channel-count"].textContent = state.config.protocol ? String(outputs.length) : "动态";
     dom["empty-table"].hidden = true;
     document.querySelector(".channel-table").hidden = false;
 
@@ -1222,7 +1252,7 @@
       const title = document.createElement("strong");
       title.textContent = `Word ${wordIndex}`;
       const summary = document.createElement("span");
-      summary.textContent = fields.length ? `${fields.length} 个自定义通道 · 帧包含时输出` : "默认 float · 帧包含时输出";
+      summary.textContent = state.config.protocol ? (fields.length ? `${fields.length} 个输出通道` : "默认 float32 通道") : (fields.length ? `${fields.length} 个自定义通道 · 帧包含时输出` : "默认 float · 帧包含时输出");
       const usageBar = document.createElement("span");
       usageBar.className = "tree-word-bar";
       for (let bit = 0; bit < 32; bit += 1) {
@@ -1250,6 +1280,7 @@
       }
     }
 
+    if (state.config.protocol) return;
     const dynamicChannelIndex = outputs.length;
     const dynamicParent = document.createElement("tr");
     dynamicParent.className = "word-tree-row is-dynamic-word";
@@ -1317,11 +1348,22 @@
     const totalBits = state.config.wordCount * 32;
     const utilization = totalBits ? Math.round((usedBits / totalBits) * 100) : 0;
     dom["stat-words"].textContent = String(state.config.wordCount);
-    dom["stat-fields"].textContent = "动态";
+    let fixedLayout = null;
+    try { if (state.config.protocol) fixedLayout = window.ProtocolModel.layout(state.config); } catch (_error) { /* Invalid inputs are shown by validation. */ }
+    dom["stat-fields"].textContent = fixedLayout ? String(fixedLayout.channels.length) : "动态";
     dom["stat-used"].textContent = `${utilization}%`;
     dom["layout-stat-words"].textContent = String(state.config.wordCount);
-    dom["layout-stat-fields"].textContent = "动态";
+    dom["layout-stat-fields"].textContent = fixedLayout ? String(fixedLayout.channels.length) : "动态";
     dom["frame-byte-count"].textContent = `${state.config.wordCount * 4} Bytes`;
+    const custom = state.config.protocol?.dataMode === "custom";
+    dom["stat-words"].parentElement.hidden = custom;
+    dom["stat-used"].parentElement.hidden = custom;
+    document.getElementById("word-count-hint").textContent = fixedLayout ? `；整帧固定 ${fixedLayout.frameBytes} Bytes` : "；JustFloat 实际接收帧可短可长";
+    document.getElementById("layout-mode-hint").textContent = fixedLayout ? "按配置的固定结构输出通道；Word 内空白位占用字节，不输出通道。" : "只解析帧中实际存在的 Word；未配置和后续 Word 继续按 JustFloat float 输出。";
+    dom["byte-order-hint"].textContent = state.config.protocol ? "Byte 0 为单元首字节；位号按字节内低位到高位" : "Byte 0 为最低有效字节";
+    document.getElementById("word-layout-view").hidden = custom;
+    document.getElementById("custom-layout-message").hidden = !custom;
+    dom["word-count"].closest(".settings-card").hidden = custom;
   }
 
   function renderEditorChrome() {
@@ -1459,6 +1501,10 @@
       let status = "ready";
       let title = "配置和构建环境已就绪";
       let detail = `通道数动态 · 已配置前 ${state.config.wordCount} 个 Word（完整前缀为 ${configuredPrefixChannelCount()} 个通道） · 帧长保持 4 字节对齐`;
+      if (state.config.protocol && !errors.length) {
+        const fixed = window.ProtocolModel.layout(state.config);
+        detail = `固定 ${fixed.frameBytes} Bytes / 帧 · ${fixed.channels.length} 个通道 · 字段值不改变帧长`;
+      }
       let icon = "check";
       if (errors.length) {
         status = "error";
@@ -1485,6 +1531,7 @@
       dom["dock-icon"].innerHTML = `<span class="icon icon-${icon}" aria-hidden="true"></span>`;
       dom["dock-title"].textContent = title;
       dom["dock-detail"].textContent = detail;
+      dom["dock-title"].title = detail;
 
       if (dom["header-status-dot"] && dom["header-status-text"]) {
         if (errors.length) {
@@ -1849,13 +1896,14 @@
       state.selectedWord = 0;
       state.collapsedWords = new Set();
       state.activeLanguage = "SimplifiedChinese";
-      state.activePage = "project";
+      state.activePage = "protocol";
       syncBasicInputs();
       resetEditor();
       markClean();
       appendLog(`已载入配置${state.configPath ? `：${state.configPath}` : ""}`, "success");
-      showToast("配置已载入", `已配置前 ${state.config.wordCount} 个 Word；实际通道数随帧长变化。`);
+      showToast("配置已载入", state.config.protocol ? `固定 ${window.ProtocolModel.layout(state.config).frameBytes} Bytes / 帧。` : `已配置前 ${state.config.wordCount} 个 Word；实际通道数随帧长变化。`);
       render();
+      protocolEditor?.reset();
     } catch (error) {
       handleError("载入配置失败", error);
     }
@@ -1863,7 +1911,8 @@
 
   async function saveConfig() {
     if (!requireApi("saveConfig")) return;
-    const errors = validateCurrent();
+    const { canvas: _canvas, ...base } = publicConfig();
+    const errors = state.config.canvas ? validateCandidate(base) : validateCurrent();
     if (errors.length) {
       showToast("暂时无法保存", errors[0], "error");
       return;
@@ -1959,6 +2008,7 @@
     }
     renderEditorChrome();
     renderValidation();
+    protocolEditor?.render();
   }
 
   function requireApi(method) {
@@ -2681,8 +2731,47 @@
   }
 
   function initialize() {
+    const appActions = document.querySelector(".app-actions");
+    dom["generate-only"].lastChild.textContent = "生成源码";
+    dom["generate-build"].querySelector(".button-content").lastChild.textContent = "Release 构建";
+    appActions.append(dom["generate-only"], dom["generate-build"]);
+    protocolEditor = window.ProtocolEditor.create({
+      config: () => state.config,
+      publicConfig,
+      errors: validateCurrent,
+      busy: () => state.busy || state.wordCountChangePending,
+      api,
+      save: saveConfig,
+      confirm: showConfirmDialog,
+      toast: showToast,
+      wordField: (wordIndex) => ({ _uiId: nextUiId(), wordIndex, type: "float", bitOffset: 0, name: `ch${wordIndex}` }),
+      update: (update) => {
+        update(state.config); markDirty(); refreshDescriptionsFromLayout();
+        state.selectedWord = Math.min(state.selectedWord, state.config.wordCount - 1);
+        syncBasicInputs(); resetEditor(); render();
+      },
+      selectedWord: () => state.selectedWord,
+      setSelectedWord: (index) => { selectWord(index); },
+      openProject: () => selectPage("project", { instant: true }),
+      openWord: (index) => { selectWord(index); protocolEditor.showMapping(index); selectPage("protocol", { instant: true }); },
+      insertWord: insertWordAt,
+      deleteWord: deleteWordAt,
+      moveWord: (from, to) => {
+        if (state.busy || state.wordCountChangePending || from < 0 || from >= state.config.wordCount || to < 0 || to > state.config.wordCount) return;
+        const order = Array.from({ length: state.config.wordCount }, (_, index) => index);
+        if (to > from) to--;
+        order.splice(to, 0, order.splice(from, 1)[0]);
+        state.config.fields.forEach((field) => { field.wordIndex = order.indexOf(field.wordIndex); });
+        state.selectedWord = to; markDirty(); refreshDescriptionsFromLayout(); resetEditor(); render();
+        protocolEditor.selectWord(to);
+      }
+    });
     syncBasicInputs();
     bindEvents();
+    document.getElementById("edit-data-domain").onclick = () => {
+      selectPage("protocol", { instant: true });
+      protocolEditor.showMapping();
+    };
     subscribeToLogs();
     resetEditor();
     render();

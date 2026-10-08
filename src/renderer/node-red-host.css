@@ -1,0 +1,19 @@
+.nr-protocol-toolbar { display: flex; align-items: center; gap: 14px; height: 42px; flex-shrink: 0; padding: 0 14px; border-bottom: 1px solid #c9c9c9; background: #f3f3f3; }
+.nr-document-title { background: transparent; border: 0; font-size: 13px; font-weight: 600; padding: 4px 0; color: #444; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nr-protocol-toolbar select { appearance: auto; min-width: 164px; height: 27px; border: 1px solid #bbb; border-radius: 3px; font-size: 12px; padding: 0 7px; background: #fff; }
+.nr-protocol-toolbar #protocol-byte-order { min-width: 88px; width: 88px; }
+.nr-protocol-toolbar .button { height: 27px; font-size: 12px; padding: 0 10px; }
+.nr-frame-summary { margin-left: auto; font-size: 12px; color: #666; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.nr-frame-summary.is-error { color: #a4262c; }
+#node-red-editor-frame { display: block; width: 100%; height: 100%; flex: 1; min-height: 0; border: 0; }
+.nr-test-pane { height: 216px; flex-shrink: 0; overflow: auto; padding: 10px 16px; border-top: 1px solid #bbb; background: #fafafa; }
+.nr-test-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+.nr-test-actions .button { height: 26px; font-size: 12px; }
+.nr-test-pane textarea { float: left; width: 38%; height: 108px; padding: 8px; font: 12px/1.6 var(--mono); background: #fff; border: 1px solid #ccc; border-radius: 3px; resize: vertical; margin-right: 16px; }
+.nr-test-pane #protocol-preview-result { margin: 0; font-size: 12px; max-height: 138px; overflow: auto; }
+.nr-test-pane #protocol-preview-result p { margin: 0 0 8px; }
+.nr-test-pane #protocol-preview-result table { width: 100%; }
+.protocol-result-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 8px; font-size: 12px; }
+.protocol-result-table td { padding: 8px; border-bottom: 1px solid var(--border-strong); text-align: left; overflow-wrap: anywhere; }
+#protocol-editor button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media(max-width:1120px) { .nr-document-title { max-width: 110px; } .nr-protocol-toolbar { gap: 10px; } .nr-protocol-toolbar select { min-width: 155px; } .nr-frame-summary { font-size: 11px; } }

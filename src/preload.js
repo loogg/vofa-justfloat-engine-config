@@ -9,6 +9,7 @@ const channels = Object.freeze({
   saveConfig: 'config:save',
   selectPath: 'path:select',
   generate: 'engine:generate',
+  previewFrame: 'engine:preview-frame',
   build: 'engine:build',
   openGenerated: 'generated:open',
   buildLog: 'build:log',
@@ -25,6 +26,7 @@ const engineApi = Object.freeze({
   selectPath: (kind) => ipcRenderer.invoke(channels.selectPath, kind),
   generate: (config, environment) =>
     ipcRenderer.invoke(channels.generate, config, environment),
+  previewFrame: (config, sample) => ipcRenderer.invoke(channels.previewFrame, config, sample),
   build: (config, environment) =>
     ipcRenderer.invoke(channels.build, config, environment),
   openGenerated: (environmentOrRepoRoot) =>

@@ -6,7 +6,9 @@ const { getEnvironment } = require('../src/generator');
 
 const root = path.resolve(__dirname, '..');
 const dll = process.argv[2] ? path.resolve(process.argv[2]) : null;
+const cases = process.argv[3] ? path.resolve(process.argv[3]) : null;
 if (!dll || !fs.statSync(dll).isFile()) throw new Error('Usage: node scripts/plugin_smoke.js <CustomFloat DLL built from examples/customfloat.vofa-engine.json>');
+if (cases && !fs.statSync(cases).isFile()) throw new Error('Smoke case file does not exist');
 const environment = getEnvironment(path.join(root, 'test/fixtures/vofa-repository'));
 if (!environment.ready) throw new Error(`Qt/MSVC environment unavailable: ${environment.missing.join(', ')}`);
 const buildDirectory = path.join(root, 'scratch/plugin-smoke-build');
@@ -28,7 +30,7 @@ fs.writeFileSync(commandFile, [
   `${quote(environment.jomPath)} -j2`,
   'if errorlevel 1 exit /b %errorlevel%',
   `set "PATH=${path.dirname(environment.qmakePath)};%PATH%"`,
-  `${quote(path.join(buildDirectory, 'release/plugin-smoke.exe'))} ${quote(dll)}`,
+  `${quote(path.join(buildDirectory, 'release/plugin-smoke.exe'))} ${quote(dll)}${cases ? ` ${quote(cases)}` : ''}`,
   'exit /b %errorlevel%'
 ].join('\r\n'), 'utf8');
 const result = spawnSync(environment.cmdPath, ['/d', '/c', commandFile], {

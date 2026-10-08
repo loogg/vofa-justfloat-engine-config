@@ -1,4 +1,31 @@
-# Design QA — Win11 Fluent utility redesign
+# Design QA — Node-RED protocol workstation
+
+## Current protocol refactor verification
+
+### Latest hierarchy correction — Bridge acceptance completed
+
+The user requested that Word and custom field nodes live directly on the primary canvas. New scenes now have one protocol flow; no data-domain subflow or template is created. Word mappings remain in the native property tray. Fixed frames support a mixture of four-byte mapped Words and independent typed/reserved fields. Valid older nested configs are compiled and displayed as a flat scene; their protocol semantics remain compatible.
+
+All 66 tests and 12 Qt 5.14.2 MSVC2017 x64 Release plugin builds/smoke pass after this correction, including a mapped Word embedded between independent fields. Fresh real Bridge review verified direct Word editing, dragging a uint8 into the primary canvas, disconnecting and reconnecting native ports, 13-byte/four-channel mixed-frame parsing, actual file save/reopen, byte-order switching, and JustFloat's Word-only palette and fixed little-endian constraint. Rapid byte-order/preset switching exposed a selection race during confirmation; capturing the requested preset before awaiting confirmation fixed it, and the same rapid sequence then passed.
+
+The final Word tray at 980×680 has equal client/scroll widths of 519 px; document widths match viewports at 980×680, 1306×781, 1119×720 and 1121×720. Current browser console warnings/errors are empty. Captures are `scratch/protocol-review/flat-word-980x680.png` and `flat-canvas-1306x781.png`; the actual saved canvas is `flat-mixed-roundtrip.json`. The byte-order selector text and preset-dependent palette filtering were corrected during review. Desktop window input remains stopped after the user's Escape; the native adapter evidence from the preceding iteration remains applicable, and a completed native save round trip is not claimed.
+
+### Evidence from the preceding editor iteration
+
+The user's current reference is Node-RED itself, including its editor technology and components. This stage replaces the provisional stacked-card protocol UI with the original `@node-red/editor-client` frontend, pinned by the package manifest. The earlier Fluent utility checks below remain historical evidence; they do not describe the new canvas.
+
+- Native Node-RED palette, grid, SVG nodes/ports/wires, property trays, subflows, navigation, zoom, undo and redo are used directly. The surrounding project/environment/build pages retain the compact Windows utility style.
+- Real Bridge review covered palette-to-canvas dragging, moving nodes with curved wires, disconnecting/reconnecting ports, undo/redo, Word and custom subflow palettes, native property editing, four-byte bit mappings, actual save/reopen, sample parsing, and a Qt Release build initiated from the UI.
+- Word mapping review found an upstream tray minimum width that clipped the form at the minimum window size. The custom Word tray now follows its actual container width; the final mapping reports equal client/scroll widths of 539 px. Native tray vertical scrolling remains available.
+- Responsive checks covered 980×680, 1306×781, and both sides of the 1120 px breakpoint (1119×720 and 1121×720). Observed document widths matched viewport widths, with no missing images or current console errors.
+- Real files and generated artifacts from review are stored only under ignored `scratch/`: `protocol-review/node-red-word-980x680.png`, `native-node-red-roundtrip.json`, `graph-plugin-smoke.log`, `protocol-smoke/results.json`, and `qt-build.log`.
+- The saved graph produced a 12-byte, three-channel `FixedSensor` plugin via the real Backend Service. QPluginLoader smoke accepted an independently specified frame and consecutive frames, outputting `[1.5, 2, 3]` with the expected consumed-byte counts.
+- `npm ci`, all 63 tests before the hierarchy correction, required JavaScript syntax checks, version consistency, and 11 Qt Release plugin smoke builds passed. The matrix covers seven standard CRC check vectors, custom CRC/endian/signed/precision layouts, resynchronization, partial frames, bad CRC/tail, and preserved legacy JustFloat short/long frames. Image scanning remains on the original source path.
+- The real Electron app loaded the original editor from a local file URL with isolated preload/IPC, detected its environment, and opened the native save dialog. Further native input was explicitly stopped by the user's physical Escape; a completed native save round trip was not claimed. The same file operations completed through the real Bridge and are covered by Backend Service tests.
+- The mechanical design detector was run once. Its reported container-padding and shadow heuristics primarily target the inherited utility shell, tables, and Fluent dialogs; compact Node-RED controls and the bit grid were evaluated visually against the user's engineering-tool reference.
+- Packaging includes the pinned original editor assets, upstream Apache license and retained vendor notices. Development Bridge sources, dependencies, scratch files and local build outputs remain excluded from production/repository commits.
+
+## Earlier Fluent utility verification
 
 ## Evidence
 

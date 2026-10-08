@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+src/renderer/node-red/vendor/
 
 # Build and release output
 dist/

@@ -5,6 +5,9 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { TextDecoder } = require('util');
+const protocol = require('./protocol');
+const flow = require('./protocol-flow');
+const { fixedSource } = require('./fixed-generator');
 
 const CONFIG_VERSION = 2;
 const WORD_SIZE = 4;
@@ -164,6 +167,37 @@ function normalizeConfig(config) {
   if (!isPlainObject(config)) {
     throw createError('INVALID_CONFIG', 'Configuration must be a JSON object.');
   }
+  if (Object.hasOwn(config, 'canvas')) {
+    const canvas = flow.normalize(config.canvas);
+    const compiled = flow.compile(canvas);
+    const { canvas: _canvas, ...base } = config;
+    const input = compiled.valid ? { ...base, ...compiled.config } : base;
+    if (compiled.valid && compiled.config.version === 2) delete input.protocol;
+    return { ...normalizeConfig(input), canvas };
+  }
+
+  if (Object.hasOwn(config, 'protocol')) {
+    const normalizedProtocol = protocol.normalize(config.protocol);
+    const wordMode = normalizedProtocol.dataMode === 'words';
+    const { protocol: _protocol, ...legacy } = config;
+    const base = normalizeConfig({
+      ...legacy, version: 2,
+      wordCount: wordMode ? config.wordCount : 1,
+      fields: wordMode ? config.fields : [{ wordIndex: 0, type: 'float', bitOffset: 0, name: '' }]
+    });
+    const result = { ...base, version: config.version ?? 3, fields: wordMode ? base.fields : [], protocol: normalizedProtocol };
+    try {
+      if (!protocol.validate(result).length) {
+        const defaults = protocol.descriptions(result, result.displayName);
+        DESCRIPTION_LANGUAGES.forEach((language) => {
+          if (result.descriptionAutoSync || config.descriptions?.[language] === undefined) result.descriptions[language] = defaults[language];
+        });
+      }
+    } catch (_error) {
+      // Invalid partial configurations are reported by validateConfig below.
+    }
+    return result;
+  }
 
   const inputVersion = config.version === undefined
     ? (config.engineName === undefined ? 1 : CONFIG_VERSION)
@@ -214,6 +248,33 @@ function normalizeConfig(config) {
 }
 
 function validateConfig(config) {
+  if (isPlainObject(config) && Object.hasOwn(config, 'canvas')) {
+    try {
+      const normalized = normalizeConfig(config);
+      const { canvas, ...base } = normalized;
+      const compiled = flow.compile(canvas);
+      const validation = validateConfig(base);
+      return { valid: validation.valid && compiled.valid, errors: [...compiled.errors, ...validation.errors], config: normalized };
+    } catch (error) { return { valid: false, errors: [error.message], config: null }; }
+  }
+  if (isPlainObject(config) && Object.hasOwn(config, 'protocol')) {
+    try {
+      const normalized = normalizeConfig(config);
+      const { protocol: _protocol, ...legacy } = config;
+      const wordMode = normalized.protocol.dataMode === 'words';
+      const legacyValidation = validateConfig({
+        ...legacy, version: 2, wordCount: wordMode ? config.wordCount : 1,
+        fields: wordMode && !(Array.isArray(config.fields) && config.fields.length === 0)
+          ? config.fields : [{ wordIndex: 0, type: 'float', bitOffset: 0, name: '' }]
+      });
+      let errors = [...legacyValidation.errors];
+      try { errors = errors.concat(protocol.validate(normalized)); }
+      catch (error) { if (!errors.length) errors.push(error.message); }
+      return { valid: errors.length === 0, errors, config: normalized };
+    } catch (error) {
+      return { valid: false, errors: [error.message], config: null };
+    }
+  }
   let normalized;
   const errors = [];
 
@@ -840,6 +901,7 @@ function replaceProcessingFrame(source, config) {
 }
 
 function rewriteSource(template, config) {
+  if (config.protocol) return fixedSource(config);
   let output = template;
   output = output.replace(
     /#include\s+"justfloat\.h"/,

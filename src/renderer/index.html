@@ -7,9 +7,11 @@
       content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>JustFloat 自定义数据引擎生成器</title>
+    <title>VOFA+ 协议引擎生成器</title>
     <link rel="icon" href="../../assets/app-icon.png" />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./workbench.css" />
+    <link rel="stylesheet" href="./node-red-host.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -17,7 +19,7 @@
         <div class="app-identity">
           <img src="../../assets/app-icon.png" alt="" width="20" height="20" />
           <div class="app-title-group">
-            <strong class="app-title">JustFloat 引擎生成器</strong>
+            <strong class="app-title">VOFA+ 协议工作台</strong>
             <span class="app-subtitle">VOFA+ 自定义数据引擎工具</span>
           </div>
         </div>
@@ -35,13 +37,13 @@
       <div class="app-body">
         <aside class="sidebar" aria-label="配置导航">
           <nav class="side-nav">
+            <button class="nav-item" id="nav-protocol" type="button" data-page-target="protocol" title="协议画布">
+              <span class="icon icon-code" aria-hidden="true"></span>
+              <span class="nav-item-text">协议画布</span>
+            </button>
             <button class="nav-item is-active" id="nav-project" type="button" data-page-target="project" aria-current="page" title="工程设置">
               <span class="icon icon-document" aria-hidden="true"></span>
               <span class="nav-item-text">工程设置</span>
-            </button>
-            <button class="nav-item" id="nav-layout" type="button" data-page-target="layout" title="通道布局">
-              <span class="icon icon-code" aria-hidden="true"></span>
-              <span class="nav-item-text">通道布局</span>
             </button>
             <button class="nav-item" id="nav-build" type="button" data-page-target="build" title="构建输出">
               <span class="icon icon-build" aria-hidden="true"></span>
@@ -63,6 +65,12 @@
         </aside>
 
         <main class="workspace" id="workspace">
+          <div class="page-view" id="page-protocol" data-page="protocol">
+            <header class="page-heading">
+              <div><h1>协议画布</h1><p>先选择数据域模式，再添加积木；字段值只改变内容，帧长由配置决定。</p></div>
+            </header>
+            <div id="protocol-editor"></div>
+          </div>
           <div class="page-view page-view-project is-active" id="page-project" data-page="project">
             <header class="page-heading">
               <div>
@@ -132,7 +140,7 @@
               <div class="settings-group-header">
                 <div class="settings-group-header-text">
                   <h2>基础设置</h2>
-                  <p>输入引擎名称并指定解码 Word 数量，其余标识符与文件名自动生成。</p>
+                  <p>输入引擎名称，其余标识符与文件名自动生成；在协议画布配置帧结构。</p>
                 </div>
                 <div class="section-metrics" aria-label="配置统计">
                   <span><strong id="stat-words">4</strong> 个配置 Word</span>
@@ -159,16 +167,17 @@
                   <div class="settings-card-info">
                     <span class="settings-card-icon" aria-hidden="true"><span class="icon icon-settings"></span></span>
                     <div class="settings-card-text">
-                      <strong class="settings-card-title">自定义解析 Word 数</strong>
-                      <span class="settings-card-desc">映射前 <strong id="frame-byte-count">16 Bytes</strong>；保持 4 字节对齐，实际接收帧可短可长</span>
+                      <strong class="settings-card-title">4 字节 Word 数据域</strong>
+                      <span class="settings-card-desc">映射 <strong id="frame-byte-count">16 Bytes</strong><span id="word-count-hint">；JustFloat 实际接收帧可短可长</span></span>
                     </div>
                   </div>
                   <div class="settings-card-action">
-                    <div class="number-stepper">
+                    <div class="number-stepper" hidden>
                       <button id="word-count-minus" type="button" aria-label="减少配置 Word"><span class="icon icon-subtract"></span></button>
                       <input id="word-count" type="number" min="1" max="256" value="4" inputmode="numeric" />
                       <button id="word-count-plus" type="button" aria-label="增加配置 Word"><span class="icon icon-add"></span></button>
                     </div>
+                    <button class="button" id="edit-data-domain" type="button">编辑数据域</button>
                   </div>
                 </div>
 
@@ -262,7 +271,7 @@
             <header class="page-heading">
               <div>
                 <h1>通道布局</h1>
-                <p>只解析帧中实际存在的 Word；未配置和后续 Word 继续按 JustFloat float 输出。</p>
+                <p id="layout-mode-hint">只解析帧中实际存在的 Word；未配置和后续 Word 继续按 JustFloat float 输出。</p>
               </div>
               <div class="section-metrics" aria-label="布局统计">
                 <span><strong id="layout-stat-words">4</strong> 个配置 Word</span>
@@ -270,7 +279,8 @@
               </div>
             </header>
 
-            <div class="layout-split-view">
+            <div class="inline-message" id="custom-layout-message" hidden>自定义字段在协议画布中配置。选中字段积木即可编辑名称、类型和字节占用。</div>
+            <div class="layout-split-view" id="word-layout-view">
               <section class="tool-section layout-left-pane" id="layout-section">
                 <div class="section-heading">
                   <div><h2>4 字节布局</h2><p>每个 Word 固定 32 bits；空 Word 默认输出 float，已拆分 Word 的空白位不输出。</p></div>
@@ -287,7 +297,7 @@
                 <div class="layout-workbench">
                   <div class="bit-canvas">
                     <div class="canvas-heading">
-                      <div class="canvas-context"><strong id="selected-word-label">WORD 0</strong><span>Byte 0 为最低有效字节</span><div class="word-channels-tags" id="word-channels-tags" aria-label="当前 Word 输出通道"></div><span class="selection-summary" id="selection-summary" hidden></span></div>
+                      <div class="canvas-context"><strong id="selected-word-label">WORD 0</strong><span id="byte-order-hint">Byte 0 为最低有效字节</span><div class="word-channels-tags" id="word-channels-tags" aria-label="当前 Word 输出通道"></div><span class="selection-summary" id="selection-summary" hidden></span></div>
                       <div class="legend" aria-label="通道颜色说明">
                         <span class="legend-channel"><i></i>颜色区分输出 ch</span><span class="legend-empty"><i></i>空白位</span><span class="legend-hint">悬停联动右侧表格</span>
                       </div>
@@ -535,6 +545,9 @@
 
     <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
     <script src="./api.js"></script>
+    <script src="../protocol.js"></script>
+    <script src="../protocol-flow.js"></script>
+    <script src="./node-red-host.js"></script>
     <script src="./renderer.js"></script>
   </body>
 </html>
