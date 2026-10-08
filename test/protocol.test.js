@@ -23,8 +23,36 @@ function temporaryRepository(t) {
 }
 
 test('CRC presets match published 123456789 check vectors including reflected and 32-bit profiles', () => {
-  const expected = { 'crc8-smbus': 0xf4, 'crc8-maxim': 0xa1, 'crc16-modbus': 0x4b37, 'crc16-arc': 0xbb3d, 'crc16-xmodem': 0x31c3, 'crc16-ccitt-false': 0x29b1, 'crc32-iso': 0xcbf43926 };
+  const expected = { 'crc8-smbus': 0xf4, 'crc8-maxim': 0xa1, 'crc8-sae-j1850': 0x4b, 'crc16-modbus': 0x4b37, 'crc16-arc': 0xbb3d, 'crc16-xmodem': 0x31c3, 'crc16-ccitt-false': 0x29b1, 'crc32-iso': 0xcbf43926 };
   for (const [name, check] of Object.entries(expected)) assert.equal(model.calculateCrc(new TextEncoder().encode('123456789'), model.CRCS[name]), check, name);
+});
+
+test('SAE-J1850 matches the supplied lookup-table implementation for binary messages', () => {
+  // Independent oracle: the device table supplied by the user, init 0xFF,
+  // table[crc ^ byte] for each byte, and an unsigned-byte complement at the end.
+  const table = model.bytes(`
+    00 1D 3A 27 74 69 4E 53 E8 F5 D2 CF 9C 81 A6 BB CD D0 F7 EA B9 A4 83 9E
+    25 38 1F 02 51 4C 6B 76 87 9A BD A0 F3 EE C9 D4 6F 72 55 48 1B 06 21 3C
+    4A 57 70 6D 3E 23 04 19 A2 BF 98 85 D6 CB EC F1 13 0E 29 34 67 7A 5D 40
+    FB E6 C1 DC 8F 92 B5 A8 DE C3 E4 F9 AA B7 90 8D 36 2B 0C 11 42 5F 78 65
+    94 89 AE B3 E0 FD DA C7 7C 61 46 5B 08 15 32 2F 59 44 63 7E 2D 30 17 0A
+    B1 AC 8B 96 C5 D8 FF E2 26 3B 1C 01 52 4F 68 75 CE D3 F4 E9 BA A7 80 9D
+    EB F6 D1 CC 9F 82 A5 B8 03 1E 39 24 77 6A 4D 50 A1 BC 9B 86 D5 C8 EF F2
+    49 54 73 6E 3D 20 07 1A 6C 71 56 4B 18 05 22 3F 84 99 BE A3 F0 ED CA D7
+    35 28 0F 12 41 5C 7B 66 DD C0 E7 FA A9 B4 93 8E F8 E5 C2 DF 8C 91 B6 AB
+    10 0D 2A 37 64 79 5E 43 B2 AF 88 95 C6 DB FC E1 5A 47 60 7D 2E 33 14 09
+    7F 62 45 58 0B 16 31 2C 97 8A AD B0 E3 FE D9 C4`);
+  assert.equal(table.length, 256);
+  const lookup = (message) => message.reduce((crc, byte) => table[crc ^ byte], 0xff) ^ 0xff;
+  const profile = model.CRCS['crc8-sae-j1850'];
+  for (let byte = 0; byte < 256; byte++) {
+    const message = Uint8Array.of(byte);
+    assert.equal(model.calculateCrc(message, profile), lookup(message));
+  }
+  for (const length of [0, 2, 9, 32, 255]) {
+    const message = Uint8Array.from({ length }, (_, index) => (index * 73 + 19) & 0xff);
+    assert.equal(model.calculateCrc(message, profile), lookup(message));
+  }
 });
 
 test('custom CRC descriptions cannot retain a preset name after changing its parameters', () => {

@@ -8,7 +8,7 @@
 - 固定结构协议按 `帧头 → 数据域 → 可选 CRC → 可选帧尾 → VOFA+ 输出` 连接。帧长由配置结构决定，不随字段值变化。
 - 左侧数据域模块直接拖入主画布，提供 4 字节 Word、定宽整数、float32、字节内状态位和保留字节；固定结构协议允许 Word 与其他定宽字段混排。
 - 主画布的连线决定 Word / 字段物理顺序。双击 Word，在属性面板编辑 4×8 位映射；空映射默认输出 float32，不需要打开流程模板。
-- CRC 支持 SMBUS、MAXIM、MODBUS、ARC、XMODEM、CCITT-FALSE、ISO-HDLC 预设及参数化 CRC-8/16/32。算法反射、校验范围和存储字节序分别配置。
+- CRC 支持 SMBUS、MAXIM、SAE-J1850、MODBUS、ARC、XMODEM、CCITT-FALSE、ISO-HDLC 预设及参数化 CRC-8/16/32。算法反射、校验范围和存储字节序分别配置。
 - 数据测试通过真实 Backend Service 验证帧边界、校验和通道输出；支持半帧、多帧和噪声恢复。
 - 配置保存节点位置、连线、字节序和字段映射。未连完的画布可作为草稿保存；只有验证通过的协议才能试解析或生成引擎。早期二级画布配置仍可读取，完整配置在编辑器中转为一级结构。
 - JustFloat 完整协议保留原有帧尾扫描、图片帧、对齐和动态后续 Word 行为。既有配置和生成器快照仍可载入。
@@ -69,7 +69,7 @@ npm test
 node scripts/protocol_smoke.js
 ```
 
-`protocol_smoke.js` 在 `scratch/` 中生成并编译 12 个 Qt 5.14.2 MSVC2017 x64 Release 插件，覆盖 Word / 自定义 / 混排数据域、全部 CRC 预设、自定义 CRC、无校验和旧 JustFloat 解析。构建环境要求与桌面工具一致。
+`protocol_smoke.js` 在 `scratch/` 中生成并编译 13 个 Qt 5.14.2 MSVC2017 x64 Release 插件，覆盖 Word / 自定义 / 混排数据域、全部 CRC 预设、自定义 CRC、无校验和旧 JustFloat 解析。构建环境要求与桌面工具一致。
 
 生成本地 Windows x64 发布包：
 

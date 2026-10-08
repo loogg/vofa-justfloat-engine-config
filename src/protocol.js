@@ -10,6 +10,7 @@
     none: { label: "无校验", width: 0 },
     "crc8-smbus": { label: "CRC-8/SMBUS", width: 8, polynomial: 0x07, init: 0, xorOut: 0, reflectInput: false, reflectOutput: false },
     "crc8-maxim": { label: "CRC-8/MAXIM-DOW", width: 8, polynomial: 0x31, init: 0, xorOut: 0, reflectInput: true, reflectOutput: true },
+    "crc8-sae-j1850": { label: "CRC-8/SAE-J1850", width: 8, polynomial: 0x1d, init: 0xff, xorOut: 0xff, reflectInput: false, reflectOutput: false },
     "crc16-modbus": { label: "CRC-16/MODBUS", width: 16, polynomial: 0x8005, init: 0xffff, xorOut: 0, reflectInput: true, reflectOutput: true },
     "crc16-arc": { label: "CRC-16/ARC", width: 16, polynomial: 0x8005, init: 0, xorOut: 0, reflectInput: true, reflectOutput: true },
     "crc16-xmodem": { label: "CRC-16/XMODEM", width: 16, polynomial: 0x1021, init: 0, xorOut: 0, reflectInput: false, reflectOutput: false },

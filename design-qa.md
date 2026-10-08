@@ -1,5 +1,11 @@
 # Design QA — Node-RED protocol workstation
 
+## CRC-8/SAE-J1850 preset verification
+
+The CRC node offers `CRC-8/SAE-J1850` with poly `0x1D`, init/xorOut `0xFF`, and no input/output reflection. Its shared calculator matches the device lookup table for all 256 single-byte values and representative binary message lengths including zero and 255 bytes. The standard `123456789` check is `0x4B`; the generated Qt plugin accepts this independently specified checksum and rejects corruption/retains partial frames.
+
+Real Bridge review selected the preset and parsed `AA 55 00 00 C0 3F 00 00 20 40 2C` as an 11-byte frame with two float channels `[1.5, 2.5]`. The CRC tray was viewed at 1306×781 and 980×680, with layout checks at 1119×720 and 1121×720; no document overflow, missing images, or current console errors were found. The screenshot is `scratch/protocol-review/sae-j1850-1306x781.png`. All 67 tests and 13 Qt Release plugin builds/smoke passed. This change adds only a shared CRC preset; native runtime adapters and editor layout are unchanged.
+
 ## Current protocol refactor verification
 
 ### Latest hierarchy correction — Bridge acceptance completed

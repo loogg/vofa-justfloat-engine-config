@@ -25,7 +25,7 @@ const custom = base('Protocol Custom', { ...model.defaults('custom'), byteOrder:
 runs.push({ config: custom, values: [-32768, 16777216, 2.5, 1], payload: '80 00 01 00 00 01 00 40 20 00 00 80' });
 const mixed = base('Protocol Mixed', { ...model.defaults('custom'), dataFields: [{ type: 'uint8', name: 'state' }, { type: 'word', name: 'packed', mappings: [{ type: 'uint16', name: 'temperature', bitOffset: 0 }, { type: 'bit', name: 'ready', bitOffset: 31 }] }, { type: 'int16', name: 'signed' }] });
 runs.push({ config: mixed, values: [7, 4660, 1, -2], payload: '07 34 12 56 80 FE FF' });
-const checks = { 'crc8-smbus': 0xf4, 'crc8-maxim': 0xa1, 'crc16-modbus': 0x4b37, 'crc16-arc': 0xbb3d, 'crc16-xmodem': 0x31c3, 'crc16-ccitt-false': 0x29b1, 'crc32-iso': 0xcbf43926 };
+const checks = { 'crc8-smbus': 0xf4, 'crc8-maxim': 0xa1, 'crc8-sae-j1850': 0x4b, 'crc16-modbus': 0x4b37, 'crc16-arc': 0xbb3d, 'crc16-xmodem': 0x31c3, 'crc16-ccitt-false': 0x29b1, 'crc32-iso': 0xcbf43926 };
 for (const [algorithm, check] of Object.entries(checks)) {
   const p = model.defaults('custom'); p.crc.algorithm = algorithm; p.crc.byteOrder = 'big';
   p.dataFields = Array.from({ length: 9 }, (_, i) => ({ type: 'uint8', name: `ch${i}` }));
