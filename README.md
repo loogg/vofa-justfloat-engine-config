@@ -100,6 +100,8 @@ Renderer 通过统一 `backendApi` 访问后端，与 Electron 解耦；原生�
 
 ## Browser Review Mode 与验证
 
+桌面窗口点击右上角关闭按钮时，已保存或未修改的配置可直接退出；存在未保存更改时会显示确认，可继续编辑或放弃更改后退出。关闭判断跟随工作台的配置保存状态，包含尚未同步到主界面的画布修改。Release 构建进行中会提示等待完成，保护 DLL 与 JSON 的成对提交。
+
 ```powershell
 npm ci
 npm run review

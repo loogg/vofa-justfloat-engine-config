@@ -43,8 +43,10 @@ function writeJson(directory, name, value) {
 function launch(directory) {
   const handlers = new Map();
   const dialogs = [];
+  const windowEvents = new Map();
   let nextOpen = { canceled: true, filePaths: [] };
   let nextSave = { canceled: true };
+  let nextClose = 0;
   let window;
   const electron = {
     app: {
@@ -59,7 +61,7 @@ function launch(directory) {
         this.webContents = {
           mainFrame: { url: pathToFileURL(path.join(root, 'src/renderer/index.html')).href },
           setWindowOpenHandler() {},
-          on() {}
+          on: (name, handler) => windowEvents.set(name, handler)
         };
       }
       isDestroyed() { return false; }
@@ -70,7 +72,8 @@ function launch(directory) {
     ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
     dialog: {
       showOpenDialog: async (_window, options) => { dialogs.push(options); return nextOpen; },
-      showSaveDialog: async (_window, options) => { dialogs.push(options); return nextSave; }
+      showSaveDialog: async (_window, options) => { dialogs.push(options); return nextSave; },
+      showMessageBoxSync: (_window, options) => { dialogs.push(options); return nextClose; }
     }
   };
   const mainFile = path.join(root, 'src/main.js');
@@ -82,6 +85,12 @@ function launch(directory) {
     dialogs,
     chooseOpen: (filePath) => { nextOpen = { canceled: false, filePaths: [filePath] }; },
     chooseSave: (filePath) => { nextSave = { canceled: false, filePath }; },
+    chooseClose: (response) => { nextClose = response; },
+    preventUnload: () => {
+      let allowed = false;
+      windowEvents.get('will-prevent-unload')({ preventDefault: () => { allowed = true; } });
+      return allowed;
+    },
     invokeUntrusted: (channel, ...args) => handlers.get(channel)({
       sender: window.webContents, senderFrame: { url: 'https://untrusted.example/' }
     }, ...args),
@@ -90,6 +99,19 @@ function launch(directory) {
     }, ...args)
   };
 }
+
+test('native unload confirmation stays open unless the user explicitly discards changes', (t) => {
+  const application = launch(workspace(t));
+  assert.equal(application.preventUnload(), false);
+  const warning = application.dialogs.at(-1);
+  assert.equal(warning.defaultId, 0);
+  assert.equal(warning.cancelId, 0);
+  assert.deepEqual(warning.buttons, ['继续编辑', '放弃更改并继续']);
+  application.chooseClose(1);
+  assert.equal(application.preventUnload(), true);
+  application.chooseClose(-1);
+  assert.equal(application.preventUnload(), false);
+});
 
 test('open imports both saved JSON and a real generated marker without changing either file', async (t) => {
   const directory = workspace(t);

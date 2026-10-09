@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  let scene = null, loaded = false, restoring = false, lastSnapshot = '', publishTimer;
+  let scene = null, loaded = false, restoring = false, lastSnapshot = '', savedContent = '', documentDirty = false, pendingChanges = false, revision = 0, publishTimer;
   const send = (type, value = {}) => window.parent.postMessage({ channel: 'vofa-node-red', type, ...value }, '*');
   const types = VofaNodeDefinitions.map((entry) => entry.type);
   const settings = {
@@ -84,30 +84,55 @@
     }
   }
   const snapshot = () => ({ ...scene, flows: RED.nodes.createCompleteNodeSet() });
+  // Node-RED can adjust a node's position after its label changes without a
+  // history event. Explicit moves are covered by pendingChanges/documentDirty.
+  const contentKey = (value) => JSON.stringify({ ...value, flows: value.flows.map(({ x, y, w, h, ...node }) => node) });
+  // This embedded editor has no Node-RED deploy lifecycle. The workbench owns
+  // saving, so its document state replaces the upstream undeployed-flow guard.
+  window.addEventListener('beforeunload', (event) => {
+    event.stopImmediatePropagation();
+    if (documentDirty || pendingChanges || (loaded && contentKey(snapshot()) !== savedContent)) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  }, { capture: true });
   function publish() {
     if (!loaded || restoring) return;
+    pendingChanges = true;
     clearTimeout(publishTimer);
     publishTimer = setTimeout(() => {
       const current = snapshot(), serialized = JSON.stringify(current);
-      if (serialized !== lastSnapshot) { lastSnapshot = serialized; send('change', { scene: current }); }
+      pendingChanges = false;
+      if (serialized !== lastSnapshot) { lastSnapshot = serialized; documentDirty = true; revision++; send('change', { scene: current, revision }); }
     }, 100);
   }
-  function load(next) {
+  function load(next, dirty) {
     scene = next;
+    documentDirty = dirty;
+    clearTimeout(publishTimer);
+    pendingChanges = false;
     restoring = true;
     RED.nodes.clear(); RED.history.clear();
     RED.nodes.import(scene.flows); RED.nodes.dirty(false);
     RED.workspaces.show(scene.flows.find((node) => node.type === 'tab').id);
     RED.view.redraw(true); filterPalette();
     lastSnapshot = JSON.stringify(snapshot());
+    revision++;
+    if (!documentDirty) savedContent = contentKey(JSON.parse(lastSnapshot));
     restoring = false;
-    send('loaded', { scene: snapshot() });
+    send('loaded', { scene: snapshot(), revision });
   }
   window.addEventListener('message', (event) => {
     if (event.source !== window.parent || event.data?.channel !== 'vofa-node-red') return;
     if (event.data.type === 'bootstrap') {
-      if (loaded) load(event.data.scene);
-      else if (!scene) { scene = event.data.scene; RED.init({ apiRootUrl: '' }); }
+      if (loaded) load(event.data.scene, Boolean(event.data.dirty));
+      else if (!scene) { scene = event.data.scene; documentDirty = Boolean(event.data.dirty); RED.init({ apiRootUrl: '' }); }
+    } else if (event.data.type === 'document-state') {
+      if (event.data.dirty) documentDirty = true;
+      else if (loaded && !pendingChanges && event.data.savedRevision === revision) {
+        documentDirty = false;
+        savedContent = contentKey(JSON.parse(lastSnapshot));
+      }
     } else if (event.data.type === 'status') {
       const status = document.getElementById('vofa-flow-status');
       status.textContent = event.data.text; status.classList.toggle('is-error', !event.data.valid);
@@ -131,7 +156,8 @@
     const palette = document.getElementById('red-ui-palette');
     if (palette) new MutationObserver(filterPalette).observe(palette, { childList: true, subtree: true });
     lastSnapshot = JSON.stringify(snapshot());
-    send('loaded', { scene: snapshot() });
+    savedContent = contentKey(JSON.parse(lastSnapshot));
+    send('loaded', { scene: snapshot(), revision });
     RED.loader.end();
   });
   send('ready');

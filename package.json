@@ -1,6 +1,6 @@
 {
   "name": "vofa-justfloat-engine-config",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "private": true,
   "author": "VOFA+",
   "description": "Visual protocol configuration and Release builder for VOFA+ data engines.",
@@ -9,7 +9,7 @@
   "scripts": {
     "postinstall": "node scripts/sync_node_red.js",
     "start": "electron .",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "verify:version": "node scripts/verify_version.js",
     "pack:win": "node scripts/package_windows.js",
     "dist": "npm run verify:version && npm run pack:win",

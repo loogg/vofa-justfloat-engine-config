@@ -58,7 +58,8 @@ const backend = createBackendService({
   dialog: {
     showOpenDialog: (options) => dialog.showOpenDialog(mainWindow, options),
     showSaveDialog: (options) => dialog.showSaveDialog(mainWindow, options),
-    showMessageBox: (options) => dialog.showMessageBox(mainWindow, options)
+    showMessageBox: (options) => dialog.showMessageBox(mainWindow, options),
+    showMessageBoxSync: (options) => dialog.showMessageBoxSync(mainWindow, options)
   },
   openPath: (target) => shell.openPath(target),
   openExternal: (url) => shell.openExternal(url)
@@ -97,6 +98,9 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  mainWindow.webContents.on('will-prevent-unload', (event) => {
+    if (backend.confirmWindowClose()) event.preventDefault();
+  });
   mainWindow.webContents.on('will-attach-webview', (event) => event.preventDefault());
   mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
     let isRendererEntry = false;

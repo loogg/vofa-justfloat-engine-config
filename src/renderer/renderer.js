@@ -156,6 +156,12 @@
   let refreshLayoutSplitter = null;
   let protocolEditor = null;
 
+  window.addEventListener("beforeunload", (event) => {
+    if (!state.dirty && !state.busy && !state.wordCountChangePending) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
   let currentAppVersion = "";
   const GITHUB_REPO_URL = "https://github.com/loogg/vofa-justfloat-engine-config";
   const GITHUB_RELEASES_URL = "https://github.com/loogg/vofa-justfloat-engine-config/releases";
@@ -661,11 +667,13 @@
   function markDirty() {
     state.dirty = true;
     dom["unsaved-indicator"].hidden = false;
+    protocolEditor?.setDocumentDirty(true);
   }
 
   function markClean() {
     state.dirty = false;
     dom["unsaved-indicator"].hidden = true;
+    protocolEditor?.setDocumentDirty(false);
   }
 
   function render() {
@@ -1918,10 +1926,12 @@
       return;
     }
     try {
-      const result = await api.saveConfig(publicConfig(), state.environment.repoRoot);
+      const submittedConfig = publicConfig();
+      const result = await api.saveConfig(submittedConfig, state.environment.repoRoot);
       if (!result) return;
       state.configPath = (typeof result === "string" ? result.trim() : stringValue(result.filePath)) || state.configPath;
-      markClean();
+      if (JSON.stringify(publicConfig()) === JSON.stringify(submittedConfig)) markClean();
+      else markDirty();
       appendLog(`配置已保存${state.configPath ? `：${state.configPath}` : ""}`, "success");
       showToast("配置已保存", state.configPath || "JSON 配置文件已写入。", "success");
     } catch (error) {
@@ -2740,6 +2750,7 @@
       publicConfig,
       errors: validateCurrent,
       busy: () => state.busy || state.wordCountChangePending,
+      dirty: () => state.dirty,
       api,
       save: saveConfig,
       confirm: showConfirmDialog,

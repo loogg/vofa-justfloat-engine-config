@@ -485,6 +485,27 @@ function createBackendService(runtime) {
   registerServiceHandlers();
   handlers.set('getAppInfo', async () => ({ version: require('../../package.json').version, mode: runtime.mode }));
   return Object.freeze({
+    confirmWindowClose() {
+      if (runtime.mode !== 'native' || typeof runtime.dialog.showMessageBoxSync !== 'function') {
+        throw new Error('Window close confirmation requires a native dialog adapter.');
+      }
+      if (buildInProgress) {
+        runtime.dialog.showMessageBoxSync({
+          type: 'info', title: '构建尚未完成',
+          message: '正在执行 Release 构建，请等待完成后再关闭。',
+          detail: '构建结束后会成对提交 DLL 和 JSON，避免运行产物不一致。',
+          buttons: ['继续等待'], defaultId: 0, cancelId: 0, noLink: true
+        });
+        return false;
+      }
+      return runtime.dialog.showMessageBoxSync({
+        type: 'warning', title: '放弃未保存的更改？',
+        message: '当前协议配置有未保存的更改。',
+        detail: '继续关闭或重新载入会丢失这些更改。可取消后使用“保存配置”保留内容。',
+        buttons: ['继续编辑', '放弃更改并继续'],
+        defaultId: 0, cancelId: 0, noLink: true
+      }) === 1;
+    },
     async invoke(method, args, onOutput) {
       if (!handlers.has(method)) throw new TypeError('Unsupported backend method');
       if (!Array.isArray(args)) throw new TypeError('Backend arguments must be an array');

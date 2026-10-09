@@ -23,7 +23,7 @@
       fill.id = 'protocol-fill-sample'; fill.textContent = '填入样例'; parse.id = 'protocol-parse-sample'; parse.textContent = '解析数据'; parse.classList.add('button-primary'); close.textContent = '收起';
       const output = document.createElement('div'); output.id = 'protocol-preview-result'; output.setAttribute('aria-live', 'polite');
       row.append(fill, parse, close); pane.append(row, input, output); host.append(pane);
-      let ready = false, loaded = false, lastConfig = '', working = false, accepting = false;
+      let ready = false, loaded = false, lastConfig = '', lastEditorRevision = -1, working = false, accepting = false;
       const send = (type, value = {}) => frame.contentWindow?.postMessage({ channel: 'vofa-node-red', type, ...value }, '*');
       const scene = () => {
         const config = adapter.publicConfig();
@@ -34,7 +34,7 @@
         }
         return config.canvas;
       };
-      const bootstrap = () => { if (ready) { lastConfig = JSON.stringify(scene()); send('bootstrap', { scene: scene() }); } };
+      const bootstrap = () => { if (ready) { lastConfig = JSON.stringify(scene()); send('bootstrap', { scene: scene(), dirty: adapter.dirty() }); } };
       function render() {
         const config = adapter.config(), errors = adapter.errors();
         title.textContent = config.engineName || '未命名协议';
@@ -60,6 +60,7 @@
         if (['loaded', 'change'].includes(event.data.type)) {
           try {
             const canvas = flows.normalize(event.data.scene), result = flows.compile(canvas);
+            lastEditorRevision = event.data.revision;
             accepting = true;
             if (event.data.type === 'change') adapter.update((config) => {
               config.canvas = canvas;
@@ -102,7 +103,7 @@
       }
       fill.onclick = () => preview(true); parse.onclick = () => preview(false);
       render();
-      return { render, reset: () => { input.value = ''; output.replaceChildren(); bootstrap(); render(); }, selectWord: () => {}, showMapping: () => { send('show-words'); } };
+      return { render, setDocumentDirty: (dirty) => send('document-state', { dirty: Boolean(dirty), savedRevision: lastEditorRevision }), reset: () => { input.value = ''; output.replaceChildren(); bootstrap(); render(); }, selectWord: () => {}, showMapping: () => { send('show-words'); } };
     }
   };
 })();
