@@ -266,6 +266,13 @@
     chain.forEach((node, index) => { node.x = 130 + index * 180; node.y = 160; node.wires = index + 1 < chain.length ? [[chain[index + 1].id]] : []; });
     return { version: 3, byteOrder: old.byteOrder, flows: [flows[0], ...chain] };
   }
+  function empty(engineName) {
+    return { version: 3, byteOrder: 'little', flows: [
+      { id: ROOT, type: 'tab', label: engineName || '协议结构', disabled: false, info: '在接收流和输出之间插入协议模块。' },
+      { id: 'receive', type: 'vofa-receive', z: ROOT, name: '', x: 150, y: 160, framing: 'fixed', repeat: true, images: false, wires: [['output']] },
+      { id: 'output', type: 'vofa-output', z: ROOT, name: '', x: 750, y: 160, wires: [] }
+    ] };
+  }
   function compile(input) {
     if (input?.version !== 3) return compileV2(input);
     try {
@@ -344,5 +351,5 @@
       return { valid: !errors.length, errors, config };
     } catch (error) { return { valid: false, errors: [error.message], config: null }; }
   }
-  return Object.freeze({ TYPES, ROOT, normalize, seed, compile, seedLegacy, checkSources });
+  return Object.freeze({ TYPES, ROOT, normalize, seed, empty, compile, seedLegacy, checkSources });
 });

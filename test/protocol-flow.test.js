@@ -9,6 +9,18 @@ const generator = require('../src/generator');
 const { createBackendService } = require('../src/backend/service');
 const base = () => ({ version: 3, engineName: 'Graph Sensor', wordCount: 2, fields: [], protocol: model.defaults(), descriptionAutoSync: true });
 
+test('reset creates one canvas with a single managed receive/output pair and no output port after the terminal', () => {
+  const scene = flow.empty('Reset Sensor');
+  assert.equal(scene.flows.filter((node) => node.type === 'tab').length, 1);
+  assert.equal(scene.flows[0].label, 'Reset Sensor');
+  assert.deepEqual(scene.flows.filter((node) => node.z).map((node) => node.type), ['vofa-receive', 'vofa-output']);
+  assert.deepEqual(scene.flows[1].wires, [['output']]);
+  assert.deepEqual(scene.flows[2].wires, []);
+  assert.equal(scene.flows[1].images, false);
+  assert.equal(flow.compile(scene).valid, false);
+  assert.equal(flow.normalize(scene).version, 3);
+});
+
 test('native Node-RED scenes compile to fixed protocol definitions and movement never changes length', () => {
   const scene = flow.seed(base());
   assert.equal(flow.compile(scene).valid, true);

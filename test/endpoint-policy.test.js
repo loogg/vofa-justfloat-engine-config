@@ -9,7 +9,8 @@ function canvas() {
     { id: 'word', type: 'vofa-word', z: 'root' },
     { id: 'output', type: 'vofa-output', z: 'root' }
   ];
-  let selection = {}, clipboard = ['existing'], history = [], calls = 0;
+  let selection = {}, clipboard = ['existing'], history = [], calls = 0, system = false, searchOptions = null, importedOptions = null;
+  const links = [];
   const actions = new Map(), notices = [];
   const remove = () => {
     calls++;
@@ -25,18 +26,26 @@ function canvas() {
   actions.set('core:copy-selection-to-internal-clipboard', copy);
   actions.set('core:convert-to-subflow', remove);
   const RED = {
-    nodes: { filterNodes: (filter) => nodes.filter((node) => Object.entries(filter).every(([key, value]) => node[key] === value)) },
+    nodes: {
+      filterNodes: (filter) => nodes.filter((node) => Object.entries(filter).every(([key, value]) => node[key] === value)),
+      add(node) { nodes.push(node); return node; },
+      import(input, options) { importedOptions = options; input.forEach((node) => RED.nodes.add(node)); return { nodes: input }; },
+      addLink(link) { links.push(link); }
+    },
+    workspaces: { active: () => 'root' },
+    typeSearch: { show(options) { searchOptions = options; }, refresh(options) { searchOptions = options; } },
     actions: { get: (name) => actions.get(name), remove: (name) => actions.delete(name), add: (name, fn) => actions.set(name, fn) },
     view: { selection: () => selection, select: (next) => { selection = next; } },
     group: { getNodes: (group) => group.children }, notify: (message) => notices.push(message)
   };
-  policy.install(RED);
+  policy.install(RED, { system: () => system });
   return {
     RED, notices, node: (id) => nodes.find((node) => node.id === id),
     select: (...ids) => { selection = { nodes: ids.map((id) => nodes.find((node) => node.id === id)) }; },
     invoke: (name) => actions.get('core:' + name)(), add: (node) => nodes.push(node),
+    system(fn) { system = true; try { return fn(); } finally { system = false; } },
     undo: () => { nodes.push(...history.pop()); },
-    state: () => ({ nodes: nodes.map((node) => node.id), clipboard, selection, history, calls })
+    state: () => ({ nodes: nodes.map((node) => node.id), clipboard, selection, history, calls, links, searchOptions, importedOptions })
   };
 }
 
@@ -72,7 +81,13 @@ test('copy excludes protected endpoints and restores the original selection with
   assert.equal(instance.notices.length, 0);
 });
 
-test('extra imported endpoints remain removable, and missing endpoints become available in the palette', () => {
+test('copying only endpoints leaves the clipboard unchanged and explains the restriction', () => {
+  const instance = canvas(); instance.select('receive', 'output'); instance.invoke('copy-selection-to-internal-clipboard');
+  assert.deepEqual(instance.state().clipboard, ['existing']);
+  assert.equal(instance.state().calls, 0); assert.match(instance.notices[0], /中间模块/);
+});
+
+test('extra endpoints in older drafts remain removable without deleting the required endpoint', () => {
   const instance = canvas(); instance.add({ id: 'extra', type: 'vofa-output', z: 'root' });
   assert.equal(policy.isProtected(instance.RED, instance.node('output')), true);
   assert.equal(policy.isProtected(instance.RED, instance.node('extra')), false);
@@ -80,6 +95,54 @@ test('extra imported endpoints remain removable, and missing endpoints become av
   assert.ok(instance.node('output')); assert.equal(instance.node('extra'), undefined);
   assert.equal(policy.hasEndpoint(instance.RED, 'vofa-receive', 'root'), true);
   assert.equal(policy.hasEndpoint(instance.RED, 'vofa-receive', 'empty'), false);
+});
+
+test('interactive node creation cannot add endpoints but system load and history restoration can', () => {
+  const instance = canvas();
+  assert.throws(() => instance.RED.nodes.add({ id: 'duplicate', type: 'vofa-output', z: 'root' }), /自动创建/);
+  assert.equal(instance.node('duplicate'), undefined);
+  instance.RED.nodes.add({ id: 'field', type: 'vofa-uint8', z: 'root' });
+  assert.ok(instance.node('field'));
+  instance.system(() => instance.RED.nodes.add({ id: 'restored', type: 'vofa-output', z: 'root' }));
+  assert.ok(instance.node('restored'));
+});
+
+test('pasting an entire foreign flow imports only intermediate nodes into the existing canvas', () => {
+  const instance = canvas();
+  const input = [
+    { id: 'foreign', type: 'tab' },
+    { id: 'r', type: 'vofa-receive', z: 'foreign', wires: [['a']] },
+    { id: 'a', type: 'vofa-uint8', z: 'foreign', wires: [['b']] },
+    { id: 'b', type: 'vofa-uint16', z: 'foreign', wires: [['o']] },
+    { id: 'o', type: 'vofa-output', z: 'foreign' }
+  ];
+  const original = structuredClone(input);
+  instance.RED.nodes.import(input, { addFlow: true, generateIds: true });
+  assert.deepEqual(input, original);
+  assert.deepEqual(instance.state().nodes, ['receive', 'word', 'output', 'a', 'b']);
+  assert.equal(instance.node('a').z, 'root'); assert.deepEqual(instance.node('a').wires, [['b']]);
+  assert.deepEqual(instance.node('b').wires, [[]]);
+  assert.equal(instance.state().importedOptions.addFlow, false);
+  assert.equal(instance.state().importedOptions.generateIds, true);
+  assert.equal(instance.RED.nodes.import([{ id: 'new-end', type: 'vofa-output' }]), undefined);
+});
+
+test('search and continued quick add require both input and output ports', () => {
+  const instance = canvas();
+  for (const method of ['show', 'refresh']) {
+    instance.RED.typeSearch[method]({ filter: { input: false, output: false }, x: 123 });
+    assert.deepEqual(instance.state().searchOptions.filter, { input: true, output: true });
+    assert.equal(instance.state().searchOptions.x, 123);
+  }
+});
+
+test('module links stay after the receive endpoint and before the output endpoint', () => {
+  const instance = canvas(), receive = instance.node('receive'), output = instance.node('output'), word = instance.node('word');
+  for (const link of [{ source: output, target: word }, { source: word, target: receive }, { source: word, target: { id: 'other', type: 'vofa-word', z: 'another-flow' } }]) instance.RED.nodes.addLink(link);
+  assert.equal(instance.state().links.length, 0);
+  instance.RED.nodes.addLink({ source: receive, target: word });
+  instance.RED.nodes.addLink({ source: word, target: output });
+  assert.equal(instance.state().links.length, 2);
 });
 
 test('groups containing required endpoints are protected while ordinary nodes still delegate to Node-RED', () => {

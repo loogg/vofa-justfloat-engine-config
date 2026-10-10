@@ -13,7 +13,9 @@
       const order = document.createElement('select'); order.setAttribute('aria-label', '数据字节序'); order.id = 'protocol-byte-order';
       for (const [value, name] of [['little', '小端'], ['big', '大端']]) { const option = document.createElement('option'); option.value = value; option.textContent = name; order.append(option); }
       const test = document.createElement('button'); test.type = 'button'; test.className = 'button'; test.textContent = '数据测试';
-      toolbar.append(title, preset, order, summary, test); host.append(toolbar);
+      const resetCanvas = document.createElement('button'); resetCanvas.type = 'button'; resetCanvas.id = 'protocol-reset-canvas'; resetCanvas.className = 'button';
+      const resetIcon = document.createElement('span'); resetIcon.className = 'icon icon-refresh'; resetIcon.setAttribute('aria-hidden', 'true'); resetCanvas.append(resetIcon, document.createTextNode('重置画布'));
+      toolbar.append(title, preset, order, resetCanvas, summary, test); host.append(toolbar);
       const frame = document.createElement('iframe'); frame.id = 'node-red-editor-frame'; frame.title = 'Node-RED 协议节点编辑器'; frame.src = './node-red/index.html'; host.append(frame);
       const pane = document.createElement('section'); pane.className = 'nr-test-pane'; pane.hidden = true;
       const row = document.createElement('div'); row.className = 'nr-test-actions';
@@ -40,9 +42,11 @@
         title.textContent = config.engineName || '未命名协议';
         preset.value = ''; preset.disabled = adapter.busy() || !loaded;
         order.value = config.canvas?.byteOrder || config.protocol?.byteOrder || 'little'; order.disabled = adapter.busy() || !loaded;
+        resetCanvas.disabled = working || adapter.busy() || !loaded;
         fill.disabled = parse.disabled = working || adapter.busy() || errors.length > 0;
         let text;
-        if (errors.length) text = errors[0];
+        if (config.canvas?.version === 3 && config.canvas.flows.filter((node) => !['tab', 'vofa-receive', 'vofa-output'].includes(node.type)).length === 0) text = '请在接收流与输出之间插入协议模块';
+        else if (errors.length) text = errors[0];
         else if (config.protocol) { const l = model.layout(config); text = config.protocol.kind === 'delimited' ? `按帧尾收帧 · ${l.channels.length} 个配置通道` : `固定 ${l.frameBytes} Bytes / 帧 · ${l.channels.length} 个通道`; }
         else text = `JustFloat · 变长收帧 · ${config.wordCount} 个配置 Word`;
         summary.textContent = text; summary.classList.toggle('is-error', errors.length > 0);
@@ -83,6 +87,11 @@
         const fixed = preset.value === 'fixed';
         if (!(await adapter.confirm({ title: '应用协议预设？', message: '当前画布将替换为所选预设的节点与连线。', detail: '请先保存需要保留的当前配置。', confirmLabel: '应用预设', tone: 'warning' }))) { render(); return; }
         adapter.update((config) => { delete config.canvas; config.wordCount = 2; config.fields = [0, 1].map(adapter.wordField); if (fixed) { config.version = 3; config.protocol = model.defaults(); } else { config.version = 2; delete config.protocol; } });
+      };
+      resetCanvas.onclick = async () => {
+        if (!(await adapter.confirm({ title: '重置协议画布？', message: '将移除画布中的协议模块与连线，恢复一对接收流和 VOFA+ 输出。', detail: '引擎名称和工程设置会保留。请先保存需要保留的配置。', confirmLabel: '重置画布', tone: 'warning' }))) return;
+        adapter.update((config) => { config.version = 3; config.wordCount = 1; config.fields = []; config.protocol = model.defaults(); config.canvas = flows.empty(config.engineName); });
+        input.value = ''; output.replaceChildren(); pane.hidden = true;
       };
       test.onclick = () => { pane.hidden = !pane.hidden; }; close.onclick = () => { pane.hidden = true; };
       async function preview(sample) {

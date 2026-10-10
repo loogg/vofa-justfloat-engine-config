@@ -27,8 +27,8 @@ body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif; }
 .red-ui-tray-body:has(#vofa-word-mapping) #dialog-form { width: auto; }
 .vofa-inline-help { margin-left: 8px; font-size: 12px; color: #666; }
 #red-ui-palette [data-palette-type="vofa-justfloat"] { display: none !important; }
-#red-ui-palette[data-vofa-receive-present="true"] [data-palette-type="vofa-receive"],
-#red-ui-palette[data-vofa-output-present="true"] [data-palette-type="vofa-output"] { display: none !important; }
+#red-ui-palette [data-palette-type="vofa-receive"], #red-ui-palette [data-palette-type="vofa-output"] { display: none !important; }
+#red-ui-clipboard-dialog-import-opt-new { display: none !important; }
 .vofa-mapping-form .vofa-mapping-output input { width: auto !important; height: auto; margin: 0 6px 0 0; }
 #dialog-form input[type=checkbox] { width: auto; }
 #node-input-hex { width: 70%; box-sizing: border-box; font: 12px/1.6 Consolas, monospace; resize: vertical; }

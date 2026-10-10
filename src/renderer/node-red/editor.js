@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  let scene = null, loaded = false, restoring = false, lastSnapshot = '', savedContent = '', documentDirty = false, pendingChanges = false, revision = 0, publishTimer;
+  let scene = null, loaded = false, restoring = false, applyingHistory = false, lastSnapshot = '', savedContent = '', documentDirty = false, pendingChanges = false, revision = 0, publishTimer;
   const send = (type, value = {}) => window.parent.postMessage({ channel: 'vofa-node-red', type, ...value }, '*');
   const types = VofaNodeDefinitions.map((entry) => entry.type);
   const settings = {
@@ -8,7 +8,7 @@
     externalModules: { palette: { allowInstall: false, allowUpload: false }, modules: { allowInstall: false } },
     editorTheme: { projects: { enabled: false }, multiplayer: { enabled: false }, tours: false, userMenu: false, languages: ['zh-CN', 'en-US'],
       palette: { editable: false }, codeEditor: { lib: 'ace' }, deployButton: { type: 'simple', label: '应用协议' },
-      menu: { 'menu-item-import-library': false, 'menu-item-export-library': false, 'menu-item-edit-palette': false, 'menu-item-projects-menu': false, 'menu-item-context': false, 'menu-item-subflow': false } }
+      menu: { 'menu-item-import-library': false, 'menu-item-export-library': false, 'menu-item-edit-palette': false, 'menu-item-projects-menu': false, 'menu-item-context': false, 'menu-item-subflow': false, 'menu-item-workspace': false, 'menu-item-workspace-add': false, 'menu-item-workspace-delete': false } }
   };
   const route = (options) => {
     const url = options.url.replace(/^\.\//, '').split('?')[0], accept = options.headers?.Accept || options.dataType;
@@ -83,7 +83,7 @@
       palette.dataset.vofaOutputPresent = String(VofaEndpointPolicy.hasEndpoint(RED, 'vofa-output', RED.workspaces.active()));
     }
     for (const type of types) {
-      const visible = type !== 'vofa-justfloat' && (!VofaEndpointPolicy.isEndpoint({ type }) || !VofaEndpointPolicy.hasEndpoint(RED, type, RED.workspaces.active()));
+      const visible = type !== 'vofa-justfloat' && !VofaEndpointPolicy.isEndpoint({ type });
       RED.palette[visible ? 'show' : 'hide'](type);
     }
   }
@@ -149,12 +149,13 @@
   });
   RED.events.on('flows:loaded', () => {
     loaded = true;
-    VofaEndpointPolicy.install(RED);
+    VofaEndpointPolicy.install(RED, { system: () => restoring || applyingHistory });
     RED.sidebar.removeTab('context');
     const push = RED.history.push, pop = RED.history.pop, redo = RED.history.redo;
     RED.history.push = function (...args) { const result = push.apply(this, args); publish(); return result; };
-    RED.history.pop = function (...args) { const result = pop.apply(this, args); publish(); return result; };
-    RED.history.redo = function (...args) { const result = redo.apply(this, args); publish(); return result; };
+    const restoreHistory = (method, context, args) => { applyingHistory = true; try { return method.apply(context, args); } finally { applyingHistory = false; publish(); } };
+    RED.history.pop = function (...args) { return restoreHistory(pop, this, args); };
+    RED.history.redo = function (...args) { return restoreHistory(redo, this, args); };
     // Upstream actions capture the original history functions during RED.init.
     // Rebind them so keyboard and menu undo/redo also publish the restored scene.
     for (const [action, method] of [['core:undo', 'pop'], ['core:redo', 'redo']]) {
