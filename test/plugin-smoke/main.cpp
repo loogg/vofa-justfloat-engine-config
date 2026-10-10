@@ -75,6 +75,9 @@ int main(int argc, char *argv[])
             const QJsonArray expected = entry.value(QStringLiteral("channels")).toArray();
             if (valid.size() != expected.size()) return fail(QStringLiteral("case %1 frame count mismatch").arg(index), 25);
             for (int frame = 0; frame < valid.size(); ++frame) {
+                if (entry.contains(QStringLiteral("starts"))
+                        && valid.at(frame).start_index_ != entry.value(QStringLiteral("starts")).toArray().at(frame).toInt())
+                    return fail(QStringLiteral("case %1 frame start mismatch").arg(index), 28);
                 const QJsonArray channels = expected.at(frame).toArray();
                 if (valid.at(frame).datas_.size() != channels.size()) return fail(QStringLiteral("case %1 channel count mismatch").arg(index), 26);
                 for (int channel = 0; channel < channels.size(); ++channel)

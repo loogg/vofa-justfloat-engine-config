@@ -96,7 +96,7 @@ test('a disconnected canvas can be saved and reopened as a draft while build and
   const config = { ...base(), canvas: flow.seed(base()) }; config.canvas.flows.find((node) => node.id === 'words-1').wires = [[]];
   await service.invoke('saveConfig', [config, null]);
   const restored = await service.invoke('openConfig', [null]);
-  assert.equal(restored.config.canvas.version, 2);
+  assert.equal(restored.config.canvas.version, 3);
   assert.equal(flow.compile(restored.config.canvas).valid, false);
   await assert.rejects(service.invoke('previewFrame', [restored.config, '']), /Invalid engine configuration/);
 });
@@ -104,7 +104,7 @@ test('a disconnected canvas can be saved and reopened as a draft while build and
 test('new canvases contain one primary flow and preserve older nested configs when flattened', () => {
   const old = flow.seedLegacy(base()), compiled = flow.compile(old);
   const flat = flow.seed({ ...base(), ...compiled.config });
-  assert.equal(flat.version, 2);
+  assert.equal(flat.version, 3);
   assert.equal(flat.flows.some((node) => node.type === 'subflow' || node.type.startsWith('subflow:')), false);
   assert.deepEqual(flow.compile(flat).config, compiled.config);
 });

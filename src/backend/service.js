@@ -325,9 +325,8 @@ function createBackendService(runtime) {
   function registerServiceHandlers() {
     registerHandler(channels.previewFrame, 2, async (_event, config, sample) => {
       const normalized = await prepareConfig(config);
-      if (!normalized.protocol) throw new TypeError('试解析仅用于固定结构协议。JustFloat 保持原有收帧规则。');
       if (typeof sample !== 'string' || sample.length > 800000) throw new TypeError('试解析数据需为不超过 800000 字符的十六进制文本。');
-      return protocol.preview(normalized, sample);
+      return normalized.protocol ? protocol.preview(normalized, sample) : protocol.previewJustFloat(normalized, sample);
     });
     registerHandler(channels.getEnvironment, 1, async (_event, repoRoot) => {
       return getEnvironment(environmentScanRequest(repoRoot));

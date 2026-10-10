@@ -1,0 +1,25 @@
+{
+  "version": 3,
+  "engineName": "Validated Sensor",
+  "descriptionAutoSync": true,
+  "wordCount": 1,
+  "fields": [],
+  "protocol": {
+    "kind": "fixed",
+    "dataMode": "custom",
+    "header": "AA55",
+    "headerValues": ["AA55", "AA56"],
+    "tail": "0D0A",
+    "byteOrder": "little",
+    "dataFields": [
+      {"type": "uint8", "name": "设备地址", "output": false},
+      {"type": "uint8", "name": "命令", "output": false},
+      {"type": "uint16", "name": "采样值"}
+    ],
+    "checks": [
+      {"field": 0, "operator": "eq", "values": [1]},
+      {"field": 1, "operator": "in", "values": [16, 32]}
+    ],
+    "crc": {"algorithm": "crc16-modbus", "scope": "data", "byteOrder": "little"}
+  }
+}

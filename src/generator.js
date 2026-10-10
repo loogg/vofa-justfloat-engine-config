@@ -185,7 +185,9 @@ function normalizeConfig(config) {
       wordCount: wordMode ? config.wordCount : 1,
       fields: wordMode ? config.fields : [{ wordIndex: 0, type: 'float', bitOffset: 0, name: '' }]
     });
-    const result = { ...base, version: config.version ?? 3, fields: wordMode ? base.fields : [], protocol: normalizedProtocol };
+    const fields = wordMode && Array.isArray(base.fields) ? base.fields.map((field, index) => isPlainObject(field)
+      ? { ...field, ...(config.fields[index].output !== undefined ? { output: config.fields[index].output } : {}) } : field) : base.fields;
+    const result = { ...base, version: config.version ?? 3, fields: wordMode ? fields : [], protocol: normalizedProtocol };
     try {
       if (!protocol.validate(result).length) {
         const defaults = protocol.descriptions(result, result.displayName);

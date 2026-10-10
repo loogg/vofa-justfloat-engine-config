@@ -4,6 +4,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { buildEngine, normalizeConfig } = require('../src/generator');
 const model = require('../src/protocol');
+const flow = require('../src/protocol-flow');
 
 const root = path.resolve(__dirname, '..');
 const workspace = path.join(root, 'scratch/protocol-smoke');
@@ -33,6 +34,59 @@ for (const [algorithm, check] of Object.entries(checks)) {
 }
 const none = model.defaults('custom'); none.crc.algorithm = 'none'; none.dataFields = [{ type: 'float', name: 'value' }];
 runs.push({ config: base('Protocol No Crc', none), payload: '00 00 20 40', values: [2.5] });
+const guarded = { ...none, header: 'AAAA', dataFields: [{ type: 'uint8', name: 'address', output: false }, { type: 'uint8', name: 'sample' }], checks: [{ field: 0, operator: 'eq', values: [1] }] };
+runs.push({ config: base('Protocol Guarded', guarded), payload: '01 2A', values: [42], cases: (_frame, sample) => [
+  { hex: sample, channels: [[42]], consumed: 4 },
+  { hex: 'AA AA AA 01 2A', channels: [[42]], consumed: 5, starts: [1] },
+  { hex: 'AA AA FF', channels: [], consumed: 2 },
+  { hex: 'AA AA 01', channels: [], consumed: 0 }
+] });
+const noHeader = { ...guarded, header: '', tail: '0D0A', dataFields: [{ type: 'uint8', name: 'address', output: false }, { type: 'uint16', name: 'sample' }] };
+runs.push({ config: base('Protocol Headerless', noHeader), payload: '01 34 12', values: [4660], cases: (_frame, sample) => [
+  { hex: sample, channels: [[4660]], consumed: 5 },
+  { hex: '99 ' + sample + ' ' + sample + ' 01 34', channels: [[4660], [4660]], consumed: 11 },
+  { hex: '99 34 12 0D 0A', channels: [], consumed: 5 },
+  { hex: '01 34', channels: [], consumed: 0 }
+] });
+const variants = { ...guarded, header: 'AA55', headerValues: ['AA55', 'AA56'] };
+runs.push({ config: base('Protocol Header Variants', variants), payload: '01 2A', values: [42], cases: (_frame, sample) => [
+  { hex: sample + ' AA 56 01 2A AA', channels: [[42], [42]], consumed: 8 },
+  { hex: 'AA 57 01 2A ' + sample, channels: [[42]], consumed: 8 },
+  { hex: 'AA 56 01', channels: [], consumed: 0 }
+] });
+const delimited = { ...model.defaults(), kind: 'delimited', header: '', tail: '0000807F', repeatWords: true, crc: { algorithm: 'none', scope: 'data', byteOrder: 'little' } };
+runs.push({ config: base('Protocol Delimited', delimited), payload: '00 00 C0 3F 00 00 20 40', values: [1.5, 2.5], cases: (_frame, sample) => [
+  { hex: sample, channels: [[1.5, 2.5]], consumed: 12 },
+  { hex: '00 00 C0 3F 00 00 80 7F', channels: [[1.5]], consumed: 8 },
+  { hex: '00 00 C0 3F 00 00 20 40 00 00 60 40 00 00 80 7F', channels: [[1.5, 2.5, 3.5]], consumed: 16 },
+  { hex: '99 ' + sample, channels: [[1.5, 2.5]], consumed: 13, starts: [1] },
+  { hex: '00 00 C0 3F 00 00 80', channels: [], consumed: 0 }
+] });
+const raw32 = { ...none, dataFields: [{ type: 'uint32', name: 'counter' }], checks: [{ field: 0, operator: 'eq', values: [16777217] }] };
+const bounded = { ...delimited, header: 'AA55' };
+runs.push({ config: base('Protocol Delimited Header', bounded), payload: '00 00 C0 3F 00 00 20 40', values: [1.5, 2.5], cases: (_frame, sample) => [
+  { hex: sample, channels: [[1.5, 2.5]], consumed: 14 },
+  { hex: 'AA 55 ' + '00 '.repeat(65532) + '00 00 80 7F', channels: [], consumed: 65537 }
+] });
+runs.push({ config: base('Protocol Raw Check', raw32), payload: '01 00 00 01', values: [16777216], cases: (_frame, sample) => [
+  { hex: sample, channels: [[16777216]], consumed: 6 },
+  { hex: 'AA 55 00 00 00 01 ' + sample, channels: [[16777216]], consumed: 12 },
+  { hex: 'AA 55 01 00', channels: [], consumed: 0 }
+] });
+const typedChecks = { ...none, dataFields: [{ type: 'int16', name: 'signed' }, { type: 'uint32', name: 'flags' }, { type: 'float', name: 'float' }], checks: [{ field: 0, operator: 'range', min: -3, max: -1 }, { field: 1, operator: 'mask', mask: 0xff000000, value: 0xab000000 }, { field: 2, operator: 'eq', values: [0.1] }] };
+runs.push({ config: base('Protocol Typed Checks', typedChecks), payload: 'FE FF 01 00 00 AB CD CC CC 3D', values: [-2, Math.fround(0xab000001), Math.fround(0.1)] });
+const wordCheck = base('Protocol Word Check', { ...model.defaults(), crc: none.crc, checks: [{ field: 0, operator: 'eq', values: [1] }] });
+wordCheck.fields = [{ wordIndex: 0, type: 'uint8', bitOffset: 0, name: 'address', output: false }, { wordIndex: 1, type: 'float', bitOffset: 0, name: 'sample' }];
+runs.push({ config: wordCheck, payload: '01 00 00 00 00 00 20 40', values: [2.5] });
+const mappedCheck = base('Protocol Mapped Check', { ...model.defaults(), crc: none.crc });
+mappedCheck.wordCount = 1; mappedCheck.fields = [{ wordIndex: 0, type: 'uint16', bitOffset: 16, name: 'high' }, { wordIndex: 0, type: 'uint16', bitOffset: 0, name: 'low' }];
+mappedCheck.canvas = flow.seed(mappedCheck);
+mappedCheck.canvas.flows.find((node) => node.id === 'words-0').wires = [['high-check']];
+mappedCheck.canvas.flows.push({ id: 'high-check', z: flow.ROOT, type: 'vofa-check', x: 700, y: 160, source: 'words-0#0', operator: 'eq', values: '16', wires: [['output']] });
+runs.push({ config: mappedCheck, payload: '01 00 10 00', values: [1, 16], cases: (_frame, sample) => [
+  { hex: sample, channels: [[1, 16]], consumed: 6 },
+  { hex: 'AA 55 10 00 01 00 ' + sample, channels: [[1, 16]], consumed: 12 }
+] });
 
 async function main() {
   const summaries = [];
@@ -46,16 +100,17 @@ async function main() {
     const definition = { className: config.className, cases: [
       { hex: sample, channels: [run.values], consumed: frame.length },
       { hex: model.hex(frame.subarray(0, frame.length - 1)), channels: [], consumed: 0 },
-      { hex: `${sample} ${sample} AA 55 00`, channels: [run.values, run.values], consumed: frame.length * 2 },
+      { hex: `${sample} ${sample} ${model.hex(frame.subarray(0, l.headerBytes + 1))}`, channels: [run.values, run.values], consumed: frame.length * 2 },
       { hex: `01 AA ${sample}`, channels: [run.values], consumed: frame.length + 2 }
     ] };
+    if (run.cases) definition.cases = run.cases(frame, sample, l);
     if (l.crcBytes) {
       const bad = Uint8Array.from(frame); bad[l.crcOffset] ^= 0x01;
       definition.cases.push({ hex: model.hex(bad), channels: [], consumed: frame.length - 1 }, { hex: `${model.hex(bad)} ${sample}`, channels: [run.values], consumed: frame.length * 2 });
     }
     if (l.tailBytes) {
       const bad = Uint8Array.from(frame); bad[l.tailOffset] ^= 0xff;
-      definition.cases.push({ hex: model.hex(bad), channels: [], consumed: frame.length - 1 });
+      definition.cases.push({ hex: model.hex(bad), channels: [], consumed: model.preview(config, model.hex(bad)).consumedBytes });
     }
     const casesFile = path.join(workspace, `${config.targetName}-cases.json`);
     fs.writeFileSync(casesFile, JSON.stringify(definition, null, 2));

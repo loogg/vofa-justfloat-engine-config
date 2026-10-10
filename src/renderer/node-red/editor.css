@@ -25,5 +25,9 @@ body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif; }
 .vofa-crc-custom { border-top: 1px solid #ddd; padding-top: 12px; margin-top: 12px; }
 .red-ui-tray-body:has(#vofa-word-mapping) { min-width: 0 !important; }
 .red-ui-tray-body:has(#vofa-word-mapping) #dialog-form { width: auto; }
-#red-ui-palette[data-vofa-kind=fixed] [data-palette-type="vofa-justfloat"],
-#red-ui-palette[data-vofa-kind=justfloat] .red-ui-palette-node:not([data-palette-type="vofa-word"]):not([data-palette-type="vofa-justfloat"]):not([data-palette-type="vofa-output"]) { display: none !important; }
+.vofa-inline-help { margin-left: 8px; font-size: 12px; color: #666; }
+#red-ui-palette [data-palette-type="vofa-justfloat"] { display: none !important; }
+.vofa-mapping-form .vofa-mapping-output input { width: auto !important; height: auto; margin: 0 6px 0 0; }
+#dialog-form input[type=checkbox] { width: auto; }
+#node-input-hex { width: 70%; box-sizing: border-box; font: 12px/1.6 Consolas, monospace; resize: vertical; }
+@media(max-width:700px) { .vofa-mapping { grid-template-columns: minmax(0,1fr); } .vofa-mapping-form { border-left: 0; border-top: 1px solid #ddd; padding: 12px 0 0; } }

@@ -79,7 +79,7 @@
     const palette = document.getElementById('red-ui-palette');
     if (palette) palette.dataset.vofaKind = scene.kind;
     for (const type of types) {
-      const visible = scene.kind === 'justfloat' ? ['vofa-justfloat', 'vofa-word', 'vofa-output'].includes(type) : type !== 'vofa-justfloat';
+      const visible = type !== 'vofa-justfloat';
       RED.palette[visible ? 'show' : 'hide'](type);
     }
   }

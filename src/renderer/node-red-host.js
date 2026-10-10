@@ -8,7 +8,7 @@
       const toolbar = document.createElement('div'); toolbar.className = 'nr-protocol-toolbar';
       const title = document.createElement('button'); title.type = 'button'; title.className = 'nr-document-title'; title.onclick = adapter.openProject;
       const preset = document.createElement('select'); preset.id = 'protocol-preset'; preset.setAttribute('aria-label', '协议预设');
-      for (const [value, name] of [['fixed', '固定结构协议'], ['justfloat', 'JustFloat 完整协议']]) { const option = document.createElement('option'); option.value = value; option.textContent = name; preset.append(option); }
+      for (const [value, name] of [['', '添加协议预设…'], ['fixed', '定长帧预设'], ['justfloat', 'JustFloat 预设']]) { const option = document.createElement('option'); option.value = value; option.textContent = name; preset.append(option); }
       const summary = document.createElement('span'); summary.className = 'nr-frame-summary';
       const order = document.createElement('select'); order.setAttribute('aria-label', '数据字节序'); order.id = 'protocol-byte-order';
       for (const [value, name] of [['little', '小端'], ['big', '大端']]) { const option = document.createElement('option'); option.value = value; option.textContent = name; order.append(option); }
@@ -28,7 +28,7 @@
       const scene = () => {
         const config = adapter.publicConfig();
         if (!config.canvas) return flows.seed(config);
-        if (config.canvas.version === 1) {
+        if (config.canvas.version < 3) {
           const compiled = flows.compile(config.canvas);
           if (compiled.valid) return flows.seed({ ...config, ...compiled.config, engineName: config.engineName });
         }
@@ -38,12 +38,12 @@
       function render() {
         const config = adapter.config(), errors = adapter.errors();
         title.textContent = config.engineName || '未命名协议';
-        preset.value = config.protocol ? 'fixed' : 'justfloat'; preset.disabled = adapter.busy() || !loaded;
-        order.value = config.protocol?.byteOrder || 'little'; order.disabled = !config.protocol || adapter.busy() || !loaded;
-        fill.disabled = parse.disabled = working || adapter.busy() || errors.length > 0 || !config.protocol;
+        preset.value = ''; preset.disabled = adapter.busy() || !loaded;
+        order.value = config.canvas?.byteOrder || config.protocol?.byteOrder || 'little'; order.disabled = adapter.busy() || !loaded;
+        fill.disabled = parse.disabled = working || adapter.busy() || errors.length > 0;
         let text;
         if (errors.length) text = errors[0];
-        else if (config.protocol) { const l = model.layout(config); text = `固定 ${l.frameBytes} Bytes / 帧 · ${l.channels.length} 个通道`; }
+        else if (config.protocol) { const l = model.layout(config); text = config.protocol.kind === 'delimited' ? `按帧尾收帧 · ${l.channels.length} 个配置通道` : `固定 ${l.frameBytes} Bytes / 帧 · ${l.channels.length} 个通道`; }
         else text = `JustFloat · 变长收帧 · ${config.wordCount} 个配置 Word`;
         summary.textContent = text; summary.classList.toggle('is-error', errors.length > 0);
         const busy = adapter.busy();
@@ -79,9 +79,9 @@
       window.addEventListener('message', receive);
       order.onchange = () => send('byte-order', { value: order.value });
       preset.onchange = async () => {
+        if (!preset.value) return;
         const fixed = preset.value === 'fixed';
-        if (fixed === Boolean(adapter.config().protocol)) return;
-        if (!(await adapter.confirm({ title: '切换协议预设？', message: '当前画布将替换为所选协议的默认节点与连线。', detail: '请先保存需要保留的当前配置。', confirmLabel: '切换预设', tone: 'warning' }))) { render(); return; }
+        if (!(await adapter.confirm({ title: '应用协议预设？', message: '当前画布将替换为所选预设的节点与连线。', detail: '请先保存需要保留的当前配置。', confirmLabel: '应用预设', tone: 'warning' }))) { render(); return; }
         adapter.update((config) => { delete config.canvas; config.wordCount = 2; config.fields = [0, 1].map(adapter.wordField); if (fixed) { config.version = 3; config.protocol = model.defaults(); } else { config.version = 2; delete config.protocol; } });
       };
       test.onclick = () => { pane.hidden = !pane.hidden; }; close.onclick = () => { pane.hidden = true; };
@@ -91,9 +91,9 @@
           const result = await adapter.api.previewFrame(adapter.publicConfig(), sample ? '' : input.value);
           if (sample) input.value = result.sampleHex;
           output.replaceChildren();
-          const status = document.createElement('p'); status.textContent = `识别 ${result.frames.length} 帧 · 拒绝 ${result.rejected} 个候选 · 剩余 ${result.remainingBytes} 字节${result.crcFailure ? ' · CRC 校验不匹配' : ''}`; output.append(status);
+          const status = document.createElement('p'); status.textContent = `识别 ${result.frames.length} 帧 · 拒绝 ${result.rejected} 个候选 · 剩余 ${result.remainingBytes} 字节${result.crcFailure ? ' · CRC 校验不匹配' : ''}${result.checkFailure ? ' · 字段 ' + (result.checkFailure.field || '未命名') + ' 值校验失败' : ''}`; output.append(status);
           for (const [index, frame] of result.frames.entries()) {
-            const heading = document.createElement('strong'); heading.textContent = `帧 ${index + 1} · ${frame.channels.length} 个通道`; output.append(heading);
+            const heading = document.createElement('strong'); heading.textContent = `帧 ${index + 1} · ${frame.imageSize ? '图片 ' + frame.imageSize + ' 字节' : frame.channels.length + ' 个通道'}`; output.append(heading);
             const table = document.createElement('table'); table.className = 'protocol-result-table';
             for (const channel of frame.channels) { const row = document.createElement('tr'); for (const value of [`ch${channel.channel}`, channel.name, channel.type, `Byte ${channel.offset}`, String(channel.value)]) { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); } table.append(row); }
             output.append(table);

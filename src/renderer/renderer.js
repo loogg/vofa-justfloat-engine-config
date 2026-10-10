@@ -411,11 +411,12 @@
       version: state.config.version,
       engineName: state.config.engineName.trim(),
       wordCount: state.config.wordCount,
-      fields: sortedFields().map(({ wordIndex, type, bitOffset, name }) => ({
+      fields: sortedFields().map(({ wordIndex, type, bitOffset, name, output }) => ({
         wordIndex,
         type,
         bitOffset,
-        name: name.trim()
+        name: name.trim(),
+        ...(state.config.protocol && output !== undefined ? { output } : {})
       })),
       ...(state.config.protocol ? { protocol: window.ProtocolModel.normalize(state.config.protocol) } : {}),
       ...(state.config.canvas ? { canvas: window.ProtocolFlow.normalize(state.config.canvas) } : {}),
@@ -642,7 +643,8 @@
           wordIndex: Number(field.wordIndex),
           type: stringValue(field.type),
           bitOffset: Number(field.bitOffset),
-          name: field.name.trim()
+          name: field.name.trim(),
+          ...(version === 3 && field.output !== undefined ? { output: field.output } : {})
         };
       }) : [],
       descriptionAutoSync: envelope.descriptionAutoSync === true,
@@ -1230,7 +1232,7 @@
       .map(({ output, index }) => [output.wordIndex, index]));
     const body = dom["channel-table-body"];
     body.replaceChildren();
-    dom["channel-count"].textContent = state.config.protocol ? String(outputs.length) : "动态";
+    dom["channel-count"].textContent = state.config.protocol && !state.config.protocol.repeatWords ? String(outputs.length) : "动态";
     dom["empty-table"].hidden = true;
     document.querySelector(".channel-table").hidden = false;
 
@@ -1362,12 +1364,13 @@
     dom["stat-used"].textContent = `${utilization}%`;
     dom["layout-stat-words"].textContent = String(state.config.wordCount);
     dom["layout-stat-fields"].textContent = fixedLayout ? String(fixedLayout.channels.length) : "动态";
-    dom["frame-byte-count"].textContent = `${state.config.wordCount * 4} Bytes`;
+    dom["frame-byte-count"].textContent = `${fixedLayout ? fixedLayout.dataBytes : state.config.wordCount * 4} Bytes`;
     const custom = state.config.protocol?.dataMode === "custom";
     dom["stat-words"].parentElement.hidden = custom;
     dom["stat-used"].parentElement.hidden = custom;
-    document.getElementById("word-count-hint").textContent = fixedLayout ? `；整帧固定 ${fixedLayout.frameBytes} Bytes` : "；JustFloat 实际接收帧可短可长";
-    document.getElementById("layout-mode-hint").textContent = fixedLayout ? "按配置的固定结构输出通道；Word 内空白位占用字节，不输出通道。" : "只解析帧中实际存在的 Word；未配置和后续 Word 继续按 JustFloat float 输出。";
+    const delimited = state.config.protocol?.kind === "delimited";
+    document.getElementById("word-count-hint").textContent = fixedLayout ? delimited ? "；按帧尾结束，实际接收帧可短可长" : `；整帧固定 ${fixedLayout.frameBytes} Bytes` : "；JustFloat 实际接收帧可短可长";
+    document.getElementById("layout-mode-hint").textContent = fixedLayout ? delimited ? "按帧尾收帧；已配置字段按实际存在的数据解析，启用后续 Word 时追加 float32 通道。" : "按配置的固定结构输出通道；Word 内空白位占用字节，不输出通道。" : "只解析帧中实际存在的 Word；未配置和后续 Word 继续按 JustFloat float 输出。";
     dom["byte-order-hint"].textContent = state.config.protocol ? "Byte 0 为单元首字节；位号按字节内低位到高位" : "Byte 0 为最低有效字节";
     document.getElementById("word-layout-view").hidden = custom;
     document.getElementById("custom-layout-message").hidden = !custom;
@@ -1909,7 +1912,7 @@
       resetEditor();
       markClean();
       appendLog(`已载入配置${state.configPath ? `：${state.configPath}` : ""}`, "success");
-      showToast("配置已载入", state.config.protocol ? `固定 ${window.ProtocolModel.layout(state.config).frameBytes} Bytes / 帧。` : `已配置前 ${state.config.wordCount} 个 Word；实际通道数随帧长变化。`);
+      showToast("配置已载入", state.config.protocol ? state.config.protocol.kind === "delimited" ? "按帧尾收帧；数据域由接收流与字段配置决定。" : `固定 ${window.ProtocolModel.layout(state.config).frameBytes} Bytes / 帧。` : `已配置前 ${state.config.wordCount} 个 Word；实际通道数随帧长变化。`);
       render();
       protocolEditor?.reset();
     } catch (error) {
