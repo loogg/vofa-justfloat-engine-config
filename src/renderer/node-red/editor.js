@@ -77,9 +77,13 @@
   RED.comms.unsubscribe = () => {};
   function filterPalette() {
     const palette = document.getElementById('red-ui-palette');
-    if (palette) palette.dataset.vofaKind = scene.kind;
+    if (palette) {
+      palette.dataset.vofaKind = scene.kind;
+      palette.dataset.vofaReceivePresent = String(VofaEndpointPolicy.hasEndpoint(RED, 'vofa-receive', RED.workspaces.active()));
+      palette.dataset.vofaOutputPresent = String(VofaEndpointPolicy.hasEndpoint(RED, 'vofa-output', RED.workspaces.active()));
+    }
     for (const type of types) {
-      const visible = type !== 'vofa-justfloat';
+      const visible = type !== 'vofa-justfloat' && (!VofaEndpointPolicy.isEndpoint({ type }) || !VofaEndpointPolicy.hasEndpoint(RED, type, RED.workspaces.active()));
       RED.palette[visible ? 'show' : 'hide'](type);
     }
   }
@@ -145,11 +149,20 @@
   });
   RED.events.on('flows:loaded', () => {
     loaded = true;
+    VofaEndpointPolicy.install(RED);
     RED.sidebar.removeTab('context');
-    const push = RED.history.push, pop = RED.history.pop;
+    const push = RED.history.push, pop = RED.history.pop, redo = RED.history.redo;
     RED.history.push = function (...args) { const result = push.apply(this, args); publish(); return result; };
     RED.history.pop = function (...args) { const result = pop.apply(this, args); publish(); return result; };
+    RED.history.redo = function (...args) { const result = redo.apply(this, args); publish(); return result; };
+    // Upstream actions capture the original history functions during RED.init.
+    // Rebind them so keyboard and menu undo/redo also publish the restored scene.
+    for (const [action, method] of [['core:undo', 'pop'], ['core:redo', 'redo']]) {
+      RED.actions.remove(action);
+      RED.actions.add(action, (...args) => RED.history[method](...args));
+    }
     RED.events.on('workspace:change', filterPalette);
+    for (const event of ['nodes:add', 'nodes:remove']) RED.events.on(event, filterPalette);
     for (const event of ['nodes:add', 'nodes:remove', 'nodes:change', 'links:add', 'links:remove', 'editor:save']) RED.events.on(event, publish);
     filterPalette();
     requestAnimationFrame(() => { filterPalette(); RED.actions.invoke('core:zoom-fit'); });

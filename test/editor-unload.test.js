@@ -8,8 +8,9 @@ const test = require('node:test');
 function editor() {
   const listeners = new Map(), events = new Map(), timers = new Map();
   const initial = [{ id: 'root', type: 'tab', label: 'Test' }, { id: 'word', type: 'vofa-word', name: 'Word 0', x: 320, y: 160 }];
-  let nodes = structuredClone(initial), upstreamDirty = false, timerId = 0, modifications = 0;
-  const parent = { postMessage() {} };
+  let nodes = structuredClone(initial), upstreamDirty = false, timerId = 0, modifications = 0, redoName = '';
+  const messages = [], actions = new Map();
+  const parent = { postMessage(message) { messages.push(structuredClone(message)); } };
   const window = { parent, addEventListener(name, handler, options) {
     if (!listeners.has(name)) listeners.set(name, []);
     listeners.get(name).push({ handler, capture: options === true || options?.capture === true });
@@ -21,13 +22,18 @@ function editor() {
   const RED = {
     i18n: {}, comms: {}, init() {}, loader: { end() {} },
     nodes: { createCompleteNodeSet: () => nodes, clear() { nodes = []; }, import(next) { nodes = structuredClone(next); upstreamDirty = true; }, dirty(value) { upstreamDirty = value; } },
-    history: { push() {}, pop() {}, clear() {} },
-    workspaces: { show() {} }, view: { redraw() {} }, sidebar: { removeTab() {} }, actions: { invoke() {} },
+    history: { push() {}, pop() { redoName = nodes[1].name; nodes[1].name = initial[1].name; }, redo() { nodes[1].name = redoName; }, clear() {} },
+    workspaces: { show() {} }, view: { redraw() {} }, sidebar: { removeTab() {} },
+    actions: { invoke(name) { actions.get(name)?.(); }, get: (name) => actions.get(name), remove: (name) => actions.delete(name), add: (name, handler) => actions.set(name, handler) },
     events: { on: (name, handler) => events.set(name, handler) }
   };
+  // Match Node-RED's eager action registration before the host installs guards.
+  actions.set('core:undo', RED.history.pop);
+  actions.set('core:redo', RED.history.redo);
   const $ = { ajaxTransport() {}, ajax() {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/renderer/node-red/editor.js'), 'utf8'), {
     window, RED, $, VofaNodeDefinitions: [], document: { getElementById: () => null },
+    VofaEndpointPolicy: { install() {} },
     requestAnimationFrame: (fn) => fn(), setTimeout: (fn) => { timers.set(++timerId, fn); return timerId; }, clearTimeout: (id) => timers.delete(id)
   });
   function receive(type, extra = {}) {
@@ -37,6 +43,8 @@ function editor() {
   events.get('flows:loaded')();
   return {
     receive,
+    invoke: (action) => RED.actions.invoke('core:' + action),
+    latestPublishedName: () => messages.filter((message) => message.type === 'change').at(-1)?.scene.flows[1].name,
     modify() { nodes[1].name = `Changed ${++modifications}`; upstreamDirty = true; events.get('nodes:change')(); },
     resizeNode() { nodes[1].x += 40; },
     moveNode() { nodes[1].x += 40; RED.history.push({ type: 'move' }); },
@@ -59,6 +67,15 @@ test('clean editor unloads and local edits are protected before the publish debo
   assert.equal(instance.unload(), true);
   instance.flush();
   assert.equal(instance.unload(), true);
+});
+
+test('keyboard and menu history actions publish the scene restored by undo and redo', () => {
+  const instance = editor(); instance.modify(); instance.flush();
+  assert.equal(instance.latestPublishedName(), 'Changed 1');
+  instance.invoke('undo'); instance.flush();
+  assert.equal(instance.latestPublishedName(), 'Word 0');
+  instance.invoke('redo'); instance.flush();
+  assert.equal(instance.latestPublishedName(), 'Changed 1');
 });
 
 test('successful host save permits unloading even when Node-RED is still undeployed', () => {

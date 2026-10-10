@@ -18,8 +18,8 @@
     row('framing', '收帧方式', select('framing', [['fixed', '按字段结构定长'], ['delimited', '按帧尾结束']])) +
     '<div class="vofa-delimited">' + row('repeat', '后续 Word', '<input type="checkbox" id="node-input-repeat"><span class="vofa-inline-help">每 4 字节追加 float32 通道</span>') +
     row('images', '图片兼容', '<input type="checkbox" id="node-input-images"><span class="vofa-inline-help">保留 JustFloat 图片帧；添加值校验时关闭</span>') + '</div>' +
-    '<p class="vofa-node-help">后面可选连接帧头。没有帧头时必须配置帧尾。字段校验失败从候选起点后移 1 字节重找；半帧保留并等待后续数据。</p>',
-    { icon: 'font-awesome/fa-sign-in', oneditprepare: function () { const toggle = () => $('.vofa-delimited').toggle($('#node-input-framing').val() === 'delimited'); $('#node-input-framing').on('change', toggle); toggle(); }, oneditsave: function () { if ($('#node-input-framing').val() === 'fixed') this.images = false; } });
+    '<p class="vofa-node-help">接收流是必需起点，可编辑和移动，不能删除，不占用协议字节。后面可选连接帧头；没有帧头时必须配置帧尾。字段校验失败从候选起点后移 1 字节重找；半帧保留并等待后续数据。</p>',
+    { icon: 'font-awesome/fa-sign-in', label: function () { return (this.name || '接收流') + ' · ' + (this.framing === 'delimited' ? '按帧尾' : '定长'); }, oneditprepare: function () { VofaEndpointPolicy.prepareEditor(RED, this, document); const toggle = () => $('.vofa-delimited').toggle($('#node-input-framing').val() === 'delimited'); $('#node-input-framing').on('change', toggle); toggle(); }, oneditsave: function () { if ($('#node-input-framing').val() === 'fixed') this.images = false; } });
   add('vofa-header', '帧头匹配', '#dedede', 1, 1, { hex: { value: 'AA55', required: true, validate: headers } },
     row('hex', '候选 HEX', '<textarea id="node-input-hex" rows="4" placeholder="AA 55&#10;AA 56"></textarea>', 'header') +
     '<p class="vofa-node-help">每行一个候选，也可用分号分隔。匹配任意一个；所有候选必须等长，最多 32 个。无帧头协议直接省略此节点。</p>', { icon: 'font-awesome/fa-search' });
@@ -40,7 +40,7 @@
       $('#node-input-operator').on('change', toggle); toggle();
     } });
   add('vofa-tail', '帧尾', '#dedede', 1, 1, { hex: { value: '0D0A', required: true, validate: hex } }, row('hex', '帧尾 HEX', 'input', 'tail'), { icon: 'font-awesome/fa-sign-out' });
-  add('vofa-output', 'VOFA+ 输出', '#d7dda3', 1, 0, {}, '<p class="vofa-node-help">此节点定义一条采样帧链的终点。连线完整后可试解析并生成数据引擎。</p>', { icon: 'font-awesome/fa-line-chart' });
+  add('vofa-output', 'VOFA+ 输出', '#d7dda3', 1, 0, {}, '<p class="vofa-node-help">此节点是必需终点，可编辑和移动，不能删除。连线完整后可试解析并生成数据引擎。</p>', { icon: 'font-awesome/fa-line-chart', oneditprepare: function () { VofaEndpointPolicy.prepareEditor(RED, this, document); } });
   add('vofa-justfloat', 'JustFloat 协议', '#c0deed', 0, 1, {}, '<p class="vofa-node-help">后面直接连接 4 字节 Word，配置普通采样帧的映射。保留原有帧尾扫描、图片帧、4 字节对齐及动态后续 Word。</p>', { icon: 'font-awesome/fa-th-list' });
   const algorithms = [...Object.entries(ProtocolModel.CRCS).filter(([key]) => key !== 'none').map(([key, value]) => [key, value.label]), ['custom', '自定义 CRC 参数']];
   add('vofa-crc', 'CRC 校验', '#e6d6ed', 1, 1, {
