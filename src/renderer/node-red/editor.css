@@ -31,3 +31,18 @@ body { margin: 0; font-family: "Segoe UI", "Microsoft YaHei UI", sans-serif; }
 #dialog-form input[type=checkbox] { width: auto; }
 #node-input-hex { width: 70%; box-sizing: border-box; font: 12px/1.6 Consolas, monospace; resize: vertical; }
 @media(max-width:700px) { .vofa-mapping { grid-template-columns: minmax(0,1fr); } .vofa-mapping-form { border-left: 0; border-top: 1px solid #ddd; padding: 12px 0 0; } }
+.form-row > .vofa-property-caption { display: inline-flex; align-items: center; width: 124px; gap: 4px; margin-right: 4px; vertical-align: middle; }
+.red-ui-tray-body:has(.vofa-property-caption) { min-width: 0 !important; }
+#dialog-form .form-row > input[type=text], #dialog-form .form-row > select, #dialog-form .form-row > textarea { max-width: calc(100% - 128px); }
+.vofa-property-caption > label { width: auto !important; margin: 0; }
+.vofa-help-trigger { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 22px; width: 22px; height: 22px; padding: 3px; border: 0; border-radius: 3px; background: transparent; color: #555; cursor: help; vertical-align: middle; }
+.vofa-help-trigger:hover { background: #e5e5e5; }
+.vofa-help-trigger:focus-visible { outline: 2px solid #0078d4; outline-offset: 1px; }
+.vofa-help-icon { display: block; width: 16px; height: 16px; background: url("../../../assets/icons/question.svg") center/16px 16px no-repeat; }
+.vofa-property-tooltip { position: fixed; z-index: 10000; max-width: min(336px, calc(100vw - 16px)); padding: 10px 12px; box-sizing: border-box; border: 1px solid #b5b5b5; border-radius: 4px; background: #fff; color: #333; font: 12px/1.65 "Segoe UI", "Microsoft YaHei UI", sans-serif; white-space: pre-line; overflow-wrap: anywhere; }
+.vofa-property-tooltip[hidden] { display: none; }
+.vofa-mapping-form .vofa-property-caption { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; min-width: 0; }
+.vofa-mapping-form .vofa-property-caption > label { margin-bottom: 0; }
+.vofa-mapping-form .vofa-mapping-output { display: flex; align-items: center; gap: 4px; margin-bottom: 10px; }
+.vofa-mapping-form .vofa-mapping-output .vofa-property-caption { margin-bottom: 0; }
+.vofa-mapping-form .vofa-mapping-output input { flex: 0 0 auto; margin: 0; }

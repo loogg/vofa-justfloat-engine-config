@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const defs = [];
-  const row = (key, label, control = 'input') => `<div class="form-row"><label for="node-input-${key}">${label}</label>${control === 'input' ? `<input id="node-input-${key}" type="text">` : control}</div>`;
+  const row = (key, label, control = 'input', helpKey = key) => `<div class="form-row">${VofaPropertyHelp.markup(label, helpKey, 'node-input-' + key)}${control === 'input' ? `<input id="node-input-${key}" type="text">` : control}</div>`;
   const select = (key, options) => `<select id="node-input-${key}">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select>`;
   const template = (type, markup) => { const script = document.createElement('script'); script.type = 'text/html'; script.dataset.templateName = type; script.textContent = markup; document.body.append(script); };
   const add = (type, label, color, inputs, outputs, defaults, markup, extra = {}) => {
@@ -21,7 +21,7 @@
     '<p class="vofa-node-help">后面可选连接帧头。没有帧头时必须配置帧尾。字段校验失败从候选起点后移 1 字节重找；半帧保留并等待后续数据。</p>',
     { icon: 'font-awesome/fa-sign-in', oneditprepare: function () { const toggle = () => $('.vofa-delimited').toggle($('#node-input-framing').val() === 'delimited'); $('#node-input-framing').on('change', toggle); toggle(); }, oneditsave: function () { if ($('#node-input-framing').val() === 'fixed') this.images = false; } });
   add('vofa-header', '帧头匹配', '#dedede', 1, 1, { hex: { value: 'AA55', required: true, validate: headers } },
-    row('hex', '候选 HEX', '<textarea id="node-input-hex" rows="4" placeholder="AA 55&#10;AA 56"></textarea>') +
+    row('hex', '候选 HEX', '<textarea id="node-input-hex" rows="4" placeholder="AA 55&#10;AA 56"></textarea>', 'header') +
     '<p class="vofa-node-help">每行一个候选，也可用分号分隔。匹配任意一个；所有候选必须等长，最多 32 个。无帧头协议直接省略此节点。</p>', { icon: 'font-awesome/fa-search' });
   add('vofa-check', '值校验', '#dedede', 1, 1, { source: { value: '', required: true }, operator: { value: 'eq', required: true }, values: { value: '1' }, min: { value: '0' }, max: { value: '255' }, mask: { value: '0xFF' }, value: { value: '1' } },
     row('source', '已读字段', '<select id="node-input-source"></select>') +
@@ -39,7 +39,7 @@
       const toggle = () => { const op = $('#node-input-operator').val(); $('.vofa-check-values').toggle(op === 'eq' || op === 'in'); $('.vofa-check-range').toggle(op === 'range'); $('.vofa-check-mask').toggle(op === 'mask'); };
       $('#node-input-operator').on('change', toggle); toggle();
     } });
-  add('vofa-tail', '帧尾', '#dedede', 1, 1, { hex: { value: '0D0A', required: true, validate: hex } }, row('hex', '帧尾 HEX'), { icon: 'font-awesome/fa-sign-out' });
+  add('vofa-tail', '帧尾', '#dedede', 1, 1, { hex: { value: '0D0A', required: true, validate: hex } }, row('hex', '帧尾 HEX', 'input', 'tail'), { icon: 'font-awesome/fa-sign-out' });
   add('vofa-output', 'VOFA+ 输出', '#d7dda3', 1, 0, {}, '<p class="vofa-node-help">此节点定义一条采样帧链的终点。连线完整后可试解析并生成数据引擎。</p>', { icon: 'font-awesome/fa-line-chart' });
   add('vofa-justfloat', 'JustFloat 协议', '#c0deed', 0, 1, {}, '<p class="vofa-node-help">后面直接连接 4 字节 Word，配置普通采样帧的映射。保留原有帧尾扫描、图片帧、4 字节对齐及动态后续 Word。</p>', { icon: 'font-awesome/fa-th-list' });
   const algorithms = [...Object.entries(ProtocolModel.CRCS).filter(([key]) => key !== 'none').map(([key, value]) => [key, value.label]), ['custom', '自定义 CRC 参数']];

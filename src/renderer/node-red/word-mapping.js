@@ -10,8 +10,12 @@
     const name = el('input'), type = el('select'), offset = el('select'), error = el('p', 'vofa-mapping-error');
     const output = el('input'); output.type = 'checkbox'; output.checked = true;
     for (const [key, width] of Object.entries(widths)) { const option = el('option', '', `${key} · ${width} bits`); option.value = key; type.append(option); }
-    for (const [label, control] of [['通道名称', name], ['字段类型', type], ['位位置', offset]]) { const caption = el('label', '', label); control.setAttribute('aria-label', label); caption.append(control); form.append(caption); }
-    const outputLabel = el('label', 'vofa-mapping-output', '输出为通道'); output.setAttribute('aria-label', '输出为通道'); outputLabel.prepend(output); form.append(outputLabel);
+    for (const [label, control, key, id] of [['通道名称', name, 'mappingName', 'name'], ['字段类型', type, 'mappingType', 'type'], ['位位置', offset, 'mappingOffset', 'offset']]) {
+      const property = el('div', 'vofa-mapping-property'); control.id = 'vofa-mapping-' + id; control.setAttribute('aria-label', label);
+      property.append(VofaPropertyHelp.caption(label, key, control.id), control); form.append(property);
+    }
+    output.id = 'vofa-mapping-output'; output.setAttribute('aria-label', '输出为通道');
+    const outputLabel = el('div', 'vofa-mapping-output'); outputLabel.append(output, VofaPropertyHelp.caption('输出为通道', 'mappingOutput', output.id)); form.append(outputLabel);
     const actions = el('div', 'vofa-mapping-actions'), save = el('button', 'red-ui-button', '添加'), remove = el('button', 'red-ui-button', '删除'), reset = el('button', 'red-ui-button', '新字段');
     for (const button of [save, remove, reset]) button.type = 'button'; actions.append(save, remove, reset); form.append(actions, error);
     host.append(el('p', 'vofa-precision', 'Word 始终占用 4 字节。空映射按 float32 输出；所有通道写入 float，uint32 / int32 超过 16,777,216 可能损失整数精度。'));
