@@ -326,7 +326,7 @@ function createBackendService(runtime) {
     registerHandler(channels.previewFrame, 2, async (_event, config, sample) => {
       const normalized = await prepareConfig(config);
       if (typeof sample !== 'string' || sample.length > 800000) throw new TypeError('试解析数据需为不超过 800000 字符的十六进制文本。');
-      return normalized.protocol ? protocol.preview(normalized, sample) : protocol.previewJustFloat(normalized, sample);
+      return protocol.preview(normalized, sample);
     });
     registerHandler(channels.getEnvironment, 1, async (_event, repoRoot) => {
       return getEnvironment(environmentScanRequest(repoRoot));
@@ -361,9 +361,12 @@ function createBackendService(runtime) {
         throw new Error(`Cannot read configuration: ${error.message}`);
       }
 
-      const normalized = await prepareConfig(unwrapConfigDocument(config), true);
+      const input = unwrapConfigDocument(config);
+      const migrated = !Object.hasOwn(input, 'protocol')
+        || Array.isArray(input.canvas?.flows) && input.canvas.flows.some((node) => node?.type === 'vofa-justfloat' || node?.type === 'vofa-receive' && node.images === true);
+      const normalized = await prepareConfig(input, true);
       await rememberConfigDirectory(repoRoot, filePath);
-      return { filePath, config: normalized };
+      return { filePath, config: normalized, ...(migrated ? { migrationNotice: '旧配置已转为通用采样解析，保留字段映射；图片请使用 VOFA+ 原生 JustFloat 引擎。' } : {}) };
     });
 
     registerHandler(channels.saveConfig, 2, async (_event, config, selectedRepoRoot) => {

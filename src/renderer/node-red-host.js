@@ -8,7 +8,7 @@
       const toolbar = document.createElement('div'); toolbar.className = 'nr-protocol-toolbar';
       const title = document.createElement('button'); title.type = 'button'; title.className = 'nr-document-title'; title.onclick = adapter.openProject;
       const preset = document.createElement('select'); preset.id = 'protocol-preset'; preset.setAttribute('aria-label', '协议预设');
-      for (const [value, name] of [['', '添加协议预设…'], ['fixed', '定长帧预设'], ['justfloat', 'JustFloat 预设']]) { const option = document.createElement('option'); option.value = value; option.textContent = name; preset.append(option); }
+      for (const [value, name] of [['', '添加协议预设…'], ['fixed', '定长帧预设'], ['justfloat', 'JustFloat 采样帧']]) { const option = document.createElement('option'); option.value = value; option.textContent = name; preset.append(option); }
       const summary = document.createElement('span'); summary.className = 'nr-frame-summary';
       const order = document.createElement('select'); order.setAttribute('aria-label', '数据字节序'); order.id = 'protocol-byte-order';
       for (const [value, name] of [['little', '小端'], ['big', '大端']]) { const option = document.createElement('option'); option.value = value; option.textContent = name; order.append(option); }
@@ -86,7 +86,7 @@
         if (!preset.value) return;
         const fixed = preset.value === 'fixed';
         if (!(await adapter.confirm({ title: '应用协议预设？', message: '当前画布将替换为所选预设的节点与连线。', detail: '请先保存需要保留的当前配置。', confirmLabel: '应用预设', tone: 'warning' }))) { render(); return; }
-        adapter.update((config) => { delete config.canvas; config.wordCount = 2; config.fields = [0, 1].map(adapter.wordField); if (fixed) { config.version = 3; config.protocol = model.defaults(); } else { config.version = 2; delete config.protocol; } });
+        adapter.update((config) => { delete config.canvas; config.version = 3; config.wordCount = 2; config.fields = [0, 1].map(adapter.wordField); config.protocol = fixed ? model.defaults() : model.sampleDefaults(); });
       };
       resetCanvas.onclick = async () => {
         if (!(await adapter.confirm({ title: '重置协议画布？', message: '将移除画布中的协议模块与连线，恢复一对接收流和 VOFA+ 输出。', detail: '引擎名称和工程设置会保留。请先保存需要保留的配置。', confirmLabel: '重置画布', tone: 'warning' }))) return;

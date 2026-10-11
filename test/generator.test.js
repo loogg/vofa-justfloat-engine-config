@@ -72,18 +72,22 @@ test('derives display, target, and C++ class names from one engine name', () => 
   assert.equal(deriveEngineNames('CustomFloat').targetName, 'customfloat');
 });
 
-test('normalizes schema v2 without mutating input or description text', () => {
+test('migrates schema v2 to generic sampling without mutating input or manual description text', () => {
   const input = configFor('  Custom Float  ');
-  input.descriptionAutoSync = true;
+  input.descriptionAutoSync = false;
   input.fields = [{ wordIndex: 0, type: ' UINT8 ', bitOffset: 0, name: ' state ' }];
   input.descriptions.English.format = '  keep whitespace exactly  ';
   const normalized = normalizeConfig(input);
 
-  assert.equal(normalized.version, 2);
+  assert.equal(normalized.version, 3);
+  assert.equal(normalized.protocol.kind, 'delimited');
+  assert.equal(normalized.protocol.header, '');
+  assert.equal(normalized.protocol.tail, '0000807F');
+  assert.equal(normalized.protocol.repeatWords, true);
   assert.equal(normalized.engineName, 'Custom Float');
   assert.equal(normalized.targetName, 'customfloat');
   assert.equal(normalized.className, 'CustomFloat');
-  assert.equal(normalized.descriptionAutoSync, true);
+  assert.equal(normalized.descriptionAutoSync, false);
   assert.equal(normalized.fields[0].type, 'uint8');
   assert.equal(normalized.fields[0].name, 'state');
   assert.equal(normalized.descriptions.English.format, '  keep whitespace exactly  ');
@@ -110,7 +114,7 @@ test('decodes UTF-8 and fragmented Windows GB18030 build output without mojibake
   assert.equal(decoded.join(''), '正在创建库 .\\mlw.lib\r\n');
 });
 
-test('migrates a v1 configuration to schema v2 and supplies descriptions', () => {
+test('migrates a v1 configuration to generic sampling and supplies descriptions', () => {
   const legacy = {
     version: 1,
     targetName: 'legacyfloat',
@@ -121,7 +125,7 @@ test('migrates a v1 configuration to schema v2 and supplies descriptions', () =>
   };
   const migrated = normalizeConfig(legacy);
 
-  assert.equal(migrated.version, 2);
+  assert.equal(migrated.version, 3);
   assert.equal(migrated.engineName, 'Legacy Float');
   assert.equal(migrated.targetName, 'legacyfloat');
   assert.equal(migrated.className, 'LegacyFloat');
@@ -176,22 +180,17 @@ test('generates beside justfloat, preserves sibling shared paths, and emits exac
   assert.match(header, /class CustomFloat/);
   assert.match(header, /Q_PLUGIN_METADATA\(IID "VOFA\+\.Plugin\.CustomFloat"\)/);
   assert.doesNotMatch(header, /\bclass JustFloat\b/);
-  assert.match(source, /data == nullptr \|\| count <= 0 \|\| count % 4 != 0/);
-  assert.match(source, /for \(int offset = 0; offset < payloadBytes; offset \+= 4\)/);
-  assert.match(source, /case 0:/);
-  assert.match(source, /word >> 16/);
-  assert.match(source, /word >> 31/);
-  assert.match(source, /& 0x80u\) != 0u/);
-  assert.match(source, /- 0x100\b/);
-  assert.match(source, /& 0x8000u\) != 0u/);
-  assert.match(source, /- 0x10000\b/);
-  assert.match(source, /& 0x80000000u\) != 0u/);
-  assert.match(source, /- 0x100000000LL\b/);
-  assert.match(source, /default:[\s\S]*std::memcpy\(&value, data \+ offset/);
+  assert.match(source, /\(dataEnd - HeaderSize\) % 4 != 0/);
+  assert.match(source, /ReadUnsigned\(bytes \+ 0, 2, true\)/);
+  assert.match(source, /bytes\[3\] >> 7/);
+  assert.match(source, /qint64\(raw\d+\) - \(qint64\(1\) << 8\)/);
+  assert.match(source, /qint64\(raw\d+\) - \(qint64\(1\) << 16\)/);
+  assert.match(source, /qint64\(raw\d+\) - \(qint64\(1\) << 32\)/);
+  assert.match(source, /offset = 12; offset \+ 4 <= dataEnd/);
   assert.doesNotMatch(source, /count != expectedCount/);
   assert.doesNotMatch(source, /minimumCount/);
   assert.match(source, /CustomFloat::ProcessingDatas/);
-  assert.match(source, /这是个图片前导帧/);
+  assert.doesNotMatch(source, /图片|image_count_|image_size_|0x7F800000/);
   assert.doesNotMatch(source, /JustFloat::/);
   assert.match(project, /^TARGET = customfloat$/m);
   assert.match(project, /\.\.\/shared\//);
@@ -202,6 +201,7 @@ test('generates beside justfloat, preserves sibling shared paths, and emits exac
   assert.deepEqual(description.English, sampleConfig.descriptions.English);
   assert.equal(marker.generator, 'vofa-justfloat-engine-builder');
   assert.equal(marker.version, 2);
+  assert.equal(marker.config.version, 3);
   assert.equal(marker.targetName, 'customfloat');
 });
 

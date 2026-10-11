@@ -5,6 +5,7 @@ const { spawnSync } = require('node:child_process');
 const { buildEngine, normalizeConfig } = require('../src/generator');
 const model = require('../src/protocol');
 const flow = require('../src/protocol-flow');
+const { standardStreams } = require('../test/stream-scenarios');
 
 const root = path.resolve(__dirname, '..');
 const workspace = path.join(root, 'scratch/protocol-smoke');
@@ -63,6 +64,12 @@ runs.push({ config: base('Protocol Delimited', delimited), payload: '00 00 C0 3F
   { hex: '00 00 C0 3F 00 00 80', channels: [], consumed: 0 }
 ] });
 const raw32 = { ...none, dataFields: [{ type: 'uint32', name: 'counter' }], checks: [{ field: 0, operator: 'eq', values: [16777217] }] };
+const sparse = { version: 2, engineName: 'Migrated Sparse', wordCount: 4, fields: [
+  { wordIndex: 0, type: 'uint8', bitOffset: 0, name: 'state' },
+  { wordIndex: 2, type: 'uint16', bitOffset: 0, name: 'low' },
+  { wordIndex: 2, type: 'uint16', bitOffset: 16, name: 'high' }
+] };
+runs.push({ config: sparse, payload: '01 00 00 00 00 00 20 40 34 12 78 56 00 00 60 40', values: [1, 2.5, 4660, 22136, 3.5] });
 const bounded = { ...delimited, header: 'AA55' };
 runs.push({ config: base('Protocol Delimited Header', bounded), payload: '00 00 C0 3F 00 00 20 40', values: [1.5, 2.5], cases: (_frame, sample) => [
   { hex: sample, channels: [[1.5, 2.5]], consumed: 14 },
@@ -97,16 +104,22 @@ async function main() {
     const crc = run.check ?? model.calculateCrc(frame.subarray(config.protocol.crc.scope === 'data' ? l.dataOffset : 0, l.crcOffset), model.crcParameters(config.protocol.crc));
     for (let i = 0; i < l.crcBytes; i++) frame[l.crcOffset + i] = (crc >>> (8 * (config.protocol.crc.byteOrder === 'little' ? i : l.crcBytes - 1 - i))) & 0xff;
     const sample = model.hex(frame);
-    const definition = { className: config.className, cases: [
+    const definition = { className: config.className, streams: standardStreams(frame, run.values), cases: [
       { hex: sample, channels: [run.values], consumed: frame.length },
       { hex: model.hex(frame.subarray(0, frame.length - 1)), channels: [], consumed: 0 },
       { hex: `${sample} ${sample} ${model.hex(frame.subarray(0, l.headerBytes + 1))}`, channels: [run.values, run.values], consumed: frame.length * 2 },
       { hex: `01 AA ${sample}`, channels: [run.values], consumed: frame.length + 2 }
     ] };
     if (run.cases) definition.cases = run.cases(frame, sample, l);
+    if (config.targetName === 'protocolguarded') definition.streams.push({ name: 'overlapping-headers-with-dirty-chunks',
+      chunks: ['99 AA', 'AA AA', '01', '2A 88 AA AA', 'FF AA', 'AA 01 2B AA', 'AA', '01 2C'], channels: [[42], [43], [44]], remaining: '' });
+    if (config.targetName === 'protocoldelimited') definition.streams.push({ name: 'dirty-byte-and-split-tail',
+      chunks: ['99 00', '00 C0', '3F 00 00', '80', '7F 00 00 20', '40 00 00 80 7F'], channels: [[1.5], [2.5]], remaining: '' });
     if (l.crcBytes) {
       const bad = Uint8Array.from(frame); bad[l.crcOffset] ^= 0x01;
       definition.cases.push({ hex: model.hex(bad), channels: [], consumed: frame.length - 1 }, { hex: `${model.hex(bad)} ${sample}`, channels: [run.values], consumed: frame.length * 2 });
+      const corruptWire = Buffer.concat([Buffer.from([0x99, 0xbb]), Buffer.from(bad), Buffer.from(frame), Buffer.from(frame)]);
+      definition.streams.push({ name: 'crc-failure-across-chunks', chunks: [model.hex(corruptWire.subarray(0, 3)), model.hex(corruptWire.subarray(3, frame.length + 1)), model.hex(corruptWire.subarray(frame.length + 1, corruptWire.length - 1)), model.hex(corruptWire.subarray(-1))], channels: [run.values, run.values], remaining: '' });
     }
     if (l.tailBytes) {
       const bad = Uint8Array.from(frame); bad[l.tailOffset] ^= 0xff;
@@ -119,8 +132,8 @@ async function main() {
     const smoke = spawnSync(process.execPath, [path.join(root, 'scripts/plugin_smoke.js'), built.dllFile, casesFile], { cwd: root, windowsHide: true, encoding: 'utf8' });
     fs.appendFileSync(log, `${smoke.stdout || ''}\n${smoke.stderr || ''}`);
     if (smoke.error || smoke.status !== 0) throw new Error(`Plugin smoke failed: ${config.targetName}\n${smoke.stderr || smoke.error}`);
-    summaries.push({ target: config.targetName, frameBytes: l.frameBytes, channels: l.channels.length, cases: definition.cases.length, dll: built.dllFile });
-    console.log(`PASS ${config.targetName}: ${definition.cases.length} compiled-plugin cases`);
+    summaries.push({ target: config.targetName, frameBytes: l.frameBytes, channels: l.channels.length, cases: definition.cases.length, streams: definition.streams.length, dll: built.dllFile });
+    console.log(`PASS ${config.targetName}: ${definition.cases.length} cases + ${definition.streams.length} incremental streams`);
   }
   const legacy = JSON.parse(fs.readFileSync(path.join(root, 'examples/customfloat.vofa-engine.json')));
   console.log('Qt Release build: legacy CustomFloat');

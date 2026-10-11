@@ -180,14 +180,12 @@ function normalizeConfig(config) {
     const normalizedProtocol = protocol.normalize(config.protocol);
     const wordMode = normalizedProtocol.dataMode === 'words';
     const { protocol: _protocol, ...legacy } = config;
-    const base = normalizeConfig({
+    const base = normalizeWordConfig({
       ...legacy, version: 2,
       wordCount: wordMode ? config.wordCount : 1,
       fields: wordMode ? config.fields : [{ wordIndex: 0, type: 'float', bitOffset: 0, name: '' }]
     });
-    const fields = wordMode && Array.isArray(base.fields) ? base.fields.map((field, index) => isPlainObject(field)
-      ? { ...field, ...(config.fields[index].output !== undefined ? { output: config.fields[index].output } : {}) } : field) : base.fields;
-    const result = { ...base, version: config.version ?? 3, fields: wordMode ? fields : [], protocol: normalizedProtocol };
+    const result = { ...base, version: config.version === undefined || [1, 2, 3].includes(config.version) ? 3 : config.version, fields: wordMode ? base.fields : [], protocol: normalizedProtocol };
     try {
       if (!protocol.validate(result).length) {
         const defaults = protocol.descriptions(result, result.displayName);
@@ -201,6 +199,12 @@ function normalizeConfig(config) {
     return result;
   }
 
+  const base = normalizeWordConfig(config);
+  return normalizeConfig({ ...base, version: [1, 2].includes(base.version) ? 3 : base.version, protocol: protocol.sampleDefaults() });
+}
+
+function normalizeWordConfig(config) {
+  if (!isPlainObject(config)) throw createError('INVALID_CONFIG', 'Configuration must be a JSON object.');
   const inputVersion = config.version === undefined
     ? (config.engineName === undefined ? 1 : CONFIG_VERSION)
     : config.version;
@@ -220,6 +224,7 @@ function normalizeConfig(config) {
           : field.type,
         bitOffset: field.bitOffset,
         name: field.name === undefined ? '' : trimmedString(field.name),
+        ...(field.output !== undefined ? { output: field.output } : {}),
       };
     })
     : config.fields;
@@ -259,13 +264,13 @@ function validateConfig(config) {
       return { valid: validation.valid && compiled.valid, errors: [...compiled.errors, ...validation.errors], config: normalized };
     } catch (error) { return { valid: false, errors: [error.message], config: null }; }
   }
-  if (isPlainObject(config) && Object.hasOwn(config, 'protocol')) {
+  if (isPlainObject(config)) {
     try {
       const normalized = normalizeConfig(config);
       const { protocol: _protocol, ...legacy } = config;
       const wordMode = normalized.protocol.dataMode === 'words';
-      const legacyValidation = validateConfig({
-        ...legacy, version: 2, wordCount: wordMode ? config.wordCount : 1,
+      const legacyValidation = validateWordConfig({
+        ...legacy, engineName: normalized.engineName, version: 2, wordCount: wordMode ? config.wordCount : 1,
         fields: wordMode && !(Array.isArray(config.fields) && config.fields.length === 0)
           ? config.fields : [{ wordIndex: 0, type: 'float', bitOffset: 0, name: '' }]
       });
@@ -277,11 +282,15 @@ function validateConfig(config) {
       return { valid: false, errors: [error.message], config: null };
     }
   }
+  return validateWordConfig(config);
+}
+
+function validateWordConfig(config) {
   let normalized;
   const errors = [];
 
   try {
-    normalized = normalizeConfig(config);
+    normalized = normalizeWordConfig(config);
   } catch (error) {
     return {
       valid: false,
@@ -684,6 +693,8 @@ function rewriteHeader(template, config) {
   output = output.replace(/#define\s+JUSTFLOAT_H\b/, `#define ${guard}`);
   output = output.replace(/#endif\s*\/\/\s*JUSTFLOAT_H/g, `#endif // ${guard}`);
   output = output.replace(/\bJustFloat\b/g, config.className);
+  output = output.replace(/^\s*uint32_t image_count_mutation_count_\s*=\s*0;\s*$/m, '');
+  output = output.replace(/private:\s*(?=};)/, '');
   output = output.replace(
     /Q_PLUGIN_METADATA\s*\(\s*IID\s+"[^"]+"\s*\)/,
     `Q_PLUGIN_METADATA(IID "VOFA+.Plugin.${config.className}")`,
@@ -696,64 +707,6 @@ function rewriteHeader(template, config) {
   return output;
 }
 
-function findMatchingBrace(source, openingBraceIndex) {
-  let depth = 0;
-  let state = 'code';
-
-  for (let index = openingBraceIndex; index < source.length; index += 1) {
-    const character = source[index];
-    const next = source[index + 1];
-
-    if (state === 'line-comment') {
-      if (character === '\n') state = 'code';
-      continue;
-    }
-    if (state === 'block-comment') {
-      if (character === '*' && next === '/') {
-        state = 'code';
-        index += 1;
-      }
-      continue;
-    }
-    if (state === 'single-quote' || state === 'double-quote') {
-      if (character === '\\') {
-        index += 1;
-      } else if ((state === 'single-quote' && character === '\'')
-          || (state === 'double-quote' && character === '"')) {
-        state = 'code';
-      }
-      continue;
-    }
-
-    if (character === '/' && next === '/') {
-      state = 'line-comment';
-      index += 1;
-      continue;
-    }
-    if (character === '/' && next === '*') {
-      state = 'block-comment';
-      index += 1;
-      continue;
-    }
-    if (character === '\'') {
-      state = 'single-quote';
-      continue;
-    }
-    if (character === '"') {
-      state = 'double-quote';
-      continue;
-    }
-    if (character === '{') {
-      depth += 1;
-    } else if (character === '}') {
-      depth -= 1;
-      if (depth === 0) return index;
-    }
-  }
-
-  return -1;
-}
-
 function sortedFields(config) {
   return config.fields
     .map((field, originalIndex) => ({ ...field, originalIndex }))
@@ -762,165 +715,6 @@ function sortedFields(config) {
       || left.bitOffset - right.bitOffset
       || left.originalIndex - right.originalIndex
     ));
-}
-
-function currentWordExpression() {
-  return [
-    'static_cast<quint32>(bytes[offset])',
-    '(static_cast<quint32>(bytes[offset + 1]) << 8)',
-    '(static_cast<quint32>(bytes[offset + 2]) << 16)',
-    '(static_cast<quint32>(bytes[offset + 3]) << 24)',
-  ].join('\n            | ');
-}
-
-function signedIntegerLines(field, channelIndex, width) {
-  const rawName = `raw${channelIndex}`;
-  const valueName = `signedValue${channelIndex}`;
-  const shiftedWord = field.bitOffset === 0
-    ? 'word'
-    : `(word >> ${field.bitOffset})`;
-  const masks = {
-    8: { value: '0xffu', sign: '0x80u', modulus: '0x100', signedType: 'qint32' },
-    16: { value: '0xffffu', sign: '0x8000u', modulus: '0x10000', signedType: 'qint32' },
-    32: { value: '0xffffffffu', sign: '0x80000000u', modulus: '0x100000000LL', signedType: 'qint64' },
-  };
-  const meta = masks[width];
-  const rawExpression = width === 32
-    ? shiftedWord
-    : `${shiftedWord} & ${meta.value}`;
-  return [
-    `            const quint32 ${rawName} = ${rawExpression};`,
-    `            const ${meta.signedType} ${valueName} = (${rawName} & ${meta.sign}) != 0u`,
-    `                ? static_cast<${meta.signedType}>(${rawName}) - ${meta.modulus}`,
-    `                : static_cast<${meta.signedType}>(${rawName});`,
-    `            dd.append(static_cast<float>(${valueName}));`,
-  ];
-}
-
-function parserLines(config) {
-  const fields = sortedFields(config);
-  const fieldsByWord = new Map();
-  fields.forEach((field) => {
-    const wordFields = fieldsByWord.get(field.wordIndex) || [];
-    wordFields.push(field);
-    fieldsByWord.set(field.wordIndex, wordFields);
-  });
-  const lines = [];
-  let channelIndex = 0;
-
-  for (let wordIndex = 0; wordIndex < config.wordCount; wordIndex += 1) {
-    const wordFields = fieldsByWord.get(wordIndex) || [];
-    if (wordFields.length === 0) {
-      channelIndex += 1;
-      continue;
-    }
-
-    lines.push(`        case ${wordIndex}: {`);
-    lines.push(`            const quint32 word = ${currentWordExpression()};`);
-    wordFields.forEach((field) => {
-      switch (field.type) {
-        case 'bit':
-          lines.push(`            dd.append(static_cast<float>((word >> ${field.bitOffset}) & 0x1u));`);
-          break;
-        case 'uint8':
-          lines.push(`            dd.append(static_cast<float>((word >> ${field.bitOffset}) & 0xffu));`);
-          break;
-        case 'int8':
-          lines.push(...signedIntegerLines(field, channelIndex, 8));
-          break;
-        case 'uint16':
-          lines.push(`            dd.append(static_cast<float>((word >> ${field.bitOffset}) & 0xffffu));`);
-          break;
-        case 'int16':
-          lines.push(...signedIntegerLines(field, channelIndex, 16));
-          break;
-        case 'uint32':
-          lines.push('            dd.append(static_cast<float>(word));');
-          break;
-        case 'int32':
-          lines.push(...signedIntegerLines(field, channelIndex, 32));
-          break;
-        case 'float':
-          lines.push(`            float value${channelIndex} = 0.0f;`);
-          lines.push(`            static_assert(sizeof(value${channelIndex}) == sizeof(word), "float must be 32 bits");`);
-          lines.push(`            std::memcpy(&value${channelIndex}, &word, sizeof(value${channelIndex}));`);
-          lines.push(`            dd.append(value${channelIndex});`);
-          break;
-        default:
-          throw createError('INVALID_CONFIG', `Unsupported field type: ${field.type}`);
-      }
-      channelIndex += 1;
-    });
-    lines.push('            break;');
-    lines.push('        }');
-  }
-
-  lines.push('        default: {');
-  lines.push('            float value = 0.0f;');
-  lines.push('            static_assert(sizeof(value) == 4, "float must be 32 bits");');
-  lines.push('            std::memcpy(&value, data + offset, sizeof(value));');
-  lines.push('            dd.append(value);');
-  lines.push('            break;');
-  lines.push('        }');
-
-  return lines.join('\n');
-}
-
-function processingFrameFunction(config) {
-  return `bool ${config.className}::ProcessingFrame(char *data, int count, QVector<float> &dd)\n`
-    + `{\n`
-    + `    if (data == nullptr || count <= 0 || count % 4 != 0)\n`
-    + `        return false;\n\n`
-    + `    const unsigned char *bytes = reinterpret_cast<const unsigned char *>(data);\n`
-    + `    const int payloadBytes = count - 4;\n`
-    + `    for (int offset = 0; offset < payloadBytes; offset += 4) {\n`
-    + `        const int wordIndex = offset / 4;\n`
-    + `        switch (wordIndex) {\n`
-    + `${parserLines(config)}\n`
-    + `        }\n`
-    + `    }\n`
-    + `    return true;\n`
-    + `}`;
-}
-
-function replaceProcessingFrame(source, config) {
-  const signature = new RegExp(
-    `bool\\s+${escapeRegExp(config.className)}::ProcessingFrame\\s*\\([^)]*\\)\\s*\\{`,
-    'm',
-  );
-  const match = signature.exec(source);
-  if (!match) {
-    throw createError('TEMPLATE_REWRITE_FAILED', 'Could not find ProcessingFrame in the JustFloat source template.');
-  }
-  const openingBrace = source.indexOf('{', match.index);
-  const closingBrace = findMatchingBrace(source, openingBrace);
-  if (closingBrace < 0) {
-    throw createError('TEMPLATE_REWRITE_FAILED', 'ProcessingFrame has unmatched braces in the JustFloat source template.');
-  }
-  return source.slice(0, match.index)
-    + processingFrameFunction(config)
-    + source.slice(closingBrace + 1);
-}
-
-function rewriteSource(template, config) {
-  if (config.protocol) return fixedSource(config);
-  let output = template;
-  output = output.replace(
-    /#include\s+"justfloat\.h"/,
-    `#include "${config.targetName}.h"`,
-  );
-  output = output.replace(/\bJustFloat\b/g, config.className);
-  if (!/^#include\s+<cstring>\s*$/m.test(output)) {
-    const ownHeader = `#include "${config.targetName}.h"`;
-    output = output.replace(ownHeader, `${ownHeader}\n#include <cstring>`);
-  }
-  output = replaceProcessingFrame(output, config);
-
-  if (!output.includes(`${config.className}::ProcessingDatas`)
-      || output.includes('JustFloat::')) {
-    throw createError('TEMPLATE_REWRITE_FAILED', 'Could not rewrite the JustFloat source template.');
-  }
-  return output;
 }
 
 function rewriteProject(template, config) {
@@ -1231,7 +1025,6 @@ function generateEngine(config, options = {}) {
   }
 
   const headerTemplate = fs.readFileSync(templates.header, 'utf8');
-  const sourceTemplate = fs.readFileSync(templates.source, 'utf8');
   const projectTemplate = fs.readFileSync(templates.project, 'utf8');
   let descriptorTemplate;
   try {
@@ -1257,7 +1050,7 @@ function generateEngine(config, options = {}) {
     );
     fs.writeFileSync(
       path.join(stagingDirectory, `${normalized.targetName}.cpp`),
-      rewriteSource(sourceTemplate, normalized),
+      fixedSource(normalized),
       'utf8',
     );
     fs.writeFileSync(

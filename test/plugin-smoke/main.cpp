@@ -23,6 +23,19 @@ bool equals(float actual, float expected)
     return std::fabs(actual - expected) < 0.0001f;
 }
 
+QString channelsError(const QList<Frame> &frames, const QJsonArray &expected)
+{
+    if (frames.size() != expected.size()) return QStringLiteral("frame count mismatch: %1 != %2").arg(frames.size()).arg(expected.size());
+    for (int frame = 0; frame < frames.size(); ++frame) {
+        const QJsonArray channels = expected.at(frame).toArray();
+        if (frames.at(frame).datas_.size() != channels.size()) return QStringLiteral("channel count mismatch at frame %1").arg(frame);
+        for (int channel = 0; channel < channels.size(); ++channel)
+            if (!equals(frames.at(frame).datas_.at(channel), float(channels.at(channel).toDouble())))
+                return QStringLiteral("value mismatch at frame %1 channel %2").arg(frame).arg(channel);
+    }
+    return QString();
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -85,7 +98,46 @@ int main(int argc, char *argv[])
                         return fail(QStringLiteral("case %1 ch%2 value mismatch").arg(index).arg(channel), 27);
             }
         }
-        qInfo() << "fixed engine smoke test passed:" << className << cases.size() << "cases";
+        const QJsonArray streams = definition.value(QStringLiteral("streams")).toArray();
+        for (const QJsonValue &value : streams) {
+            const QJsonObject stream = value.toObject();
+            const QString name = stream.value(QStringLiteral("name")).toString();
+            const QJsonArray chunks = stream.value(QStringLiteral("chunks")).toArray();
+            const QJsonArray steps = stream.value(QStringLiteral("steps")).toArray();
+            QByteArray pending;
+            QList<Frame> collected;
+            for (int index = 0; index < chunks.size(); ++index) {
+                pending.append(QByteArray::fromHex(chunks.at(index).toString().toLatin1()));
+                // Mimic VOFA+: supply retained bytes + the next transport chunk.
+                engine->ProcessingDatas(pending.data(), pending.size());
+                const QList<Frame> actual = engine->frame_list();
+                const int consumed = actual.isEmpty() ? 0 : actual.last().end_index_ + 1;
+                if (consumed < 0 || consumed > pending.size()) return fail(name + QStringLiteral(" invalid consumption"), 29);
+                QList<Frame> valid;
+                int lastEnd = -1;
+                for (const Frame &frame : actual) {
+                    if (frame.start_index_ <= lastEnd || frame.end_index_ < frame.start_index_ || frame.end_index_ >= pending.size())
+                        return fail(name + QStringLiteral(" invalid or overlapping bounds at chunk %1").arg(index), 30);
+                    lastEnd = frame.end_index_;
+                    if (frame.is_valid_) valid.append(frame);
+                }
+                pending.remove(0, consumed);
+                if (!steps.isEmpty()) {
+                    const QJsonObject step = steps.at(index).toObject();
+                    if (consumed != step.value(QStringLiteral("consumed")).toInt()
+                            || pending != QByteArray::fromHex(step.value(QStringLiteral("remaining")).toString().toLatin1()))
+                        return fail(name + QStringLiteral(" retained bytes mismatch at chunk %1").arg(index), 31);
+                    const QString error = channelsError(valid, step.value(QStringLiteral("channels")).toArray());
+                    if (!error.isEmpty()) return fail(name + QStringLiteral(" chunk %1: ").arg(index) + error, 32);
+                }
+                collected.append(valid);
+            }
+            const QString error = channelsError(collected, stream.value(QStringLiteral("channels")).toArray());
+            if (!error.isEmpty()) return fail(name + QStringLiteral(": ") + error, 33);
+            if (pending != QByteArray::fromHex(stream.value(QStringLiteral("remaining")).toString().toLatin1()))
+                return fail(name + QStringLiteral(" final retained bytes mismatch"), 34);
+        }
+        qInfo() << "generic engine smoke test passed:" << className << cases.size() << "cases +" << streams.size() << "incremental streams";
         return 0;
     }
 

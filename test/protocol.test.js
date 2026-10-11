@@ -154,7 +154,7 @@ test('validation rejects unknown modes, malformed bytes, invalid fields and unsa
   assert.throws(() => model.bytes('AA GG'), /十六进制/);
 });
 
-test('fixed generation is separate from the preserved legacy JustFloat scanning path', (t) => {
+test('fixed presets and legacy configurations generate the same generic stream parser', (t) => {
   const repo = temporaryRepository(t);
   const result = generator.generateEngine(wordConfig(), { repoRoot: repo });
   const source = fs.readFileSync(result.sourceFile, 'utf8');
@@ -165,8 +165,14 @@ test('fixed generation is separate from the preserved legacy JustFloat scanning 
   assert.deepEqual(marker.config.protocol, model.normalize(wordConfig().protocol));
   const old = { version: 2, engineName: 'Legacy Sensor', wordCount: 1, fields: [{ wordIndex: 0, type: 'float', bitOffset: 0, name: 'ch0' }] };
   const legacy = generator.generateEngine(old, { repoRoot: repo });
-  assert.match(fs.readFileSync(legacy.sourceFile, 'utf8'), /0x7F800000/);
-  assert.equal(generator.normalizeConfig(old).version, 2);
+  const migrated = generator.normalizeConfig(old);
+  assert.equal(migrated.version, 3);
+  assert.deepEqual(migrated.protocol, model.sampleDefaults());
+  const legacySource = fs.readFileSync(legacy.sourceFile, 'utf8');
+  assert.match(legacySource, /Tail-delimited stream/);
+  assert.doesNotMatch(legacySource, /0x7F800000|image_count_|image_size_/);
+  const canonical = generator.generateEngine(migrated, { repoRoot: repo });
+  assert.equal(fs.readFileSync(canonical.sourceFile, 'utf8'), legacySource);
 });
 
 test('Backend Service saves and reloads complete schema v3 and previews through its restricted contract', async (t) => {

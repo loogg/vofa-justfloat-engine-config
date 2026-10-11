@@ -18,7 +18,7 @@
 - UI 采用 Microsoft Fluent 2 / Win11 工程工具风格：紧凑、扁平、清晰、低装饰；不使用渐变、玻璃拟态、大型营销区或手绘 SVG。
 - UI 图标优先使用 `assets/icons/` 中的 Microsoft Fluent UI System Icons。
 - `uint32` 输出到 VOFA+ 的 `QVector<float>` 时可能损失超过 24-bit 的整数精度，界面和描述必须保留提示。
-- 不能改变 JustFloat 的帧尾扫描、图片帧和 4 字节对齐逻辑；自定义解析只替换普通采样帧的字段解码。
+- 所有预设及旧配置迁移后统一使用通用采样帧解析器。JustFloat 采样帧预设仅设置无帧头、小端 Word、`00 00 80 7F` 帧尾与后续 Word；不生成图片解析逻辑，图片使用 VOFA+ 原生 JustFloat 引擎。Word 与后续 float32 保持 4 字节读取约束；候选校验失败后移 1 字节重找，数据不足保留并等待后续字节。
 - 任务执行中的过程文件、临时调试与探索性脚本必须存放在项目根目录下的 `scratch/` 中，严禁写入项目外路径（如 C 盘用户缓存或 IDE 内部目录）。
 
 

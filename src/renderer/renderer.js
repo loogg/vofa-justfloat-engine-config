@@ -630,8 +630,8 @@
     const version = Number(envelope.version || 1);
     if (![1, 2, 3].includes(version)) throw new Error(`不支持配置版本 ${version}。`);
     const config = {
-      version: version === 3 ? 3 : CONFIG_VERSION,
-      ...(version === 3 ? { protocol: window.ProtocolModel.normalize(envelope.protocol) } : {}),
+      version: 3,
+      protocol: window.ProtocolModel.normalize(envelope.protocol || window.ProtocolModel.sampleDefaults()),
       ...(envelope.canvas ? { canvas: window.ProtocolFlow.normalize(envelope.canvas) } : {}),
       engineName: version === 1 ? migrateV1EngineName(envelope) : stringValue(envelope.engineName),
       wordCount: Number(envelope.wordCount),
@@ -644,7 +644,7 @@
           type: stringValue(field.type),
           bitOffset: Number(field.bitOffset),
           name: field.name.trim(),
-          ...(version === 3 && field.output !== undefined ? { output: field.output } : {})
+          ...(field.output !== undefined ? { output: field.output } : {})
         };
       }) : [],
       descriptionAutoSync: envelope.descriptionAutoSync === true,
@@ -1912,7 +1912,8 @@
       resetEditor();
       markClean();
       appendLog(`已载入配置${state.configPath ? `：${state.configPath}` : ""}`, "success");
-      showToast("配置已载入", state.config.protocol ? state.config.protocol.kind === "delimited" ? "按帧尾收帧；数据域由接收流与字段配置决定。" : `固定 ${window.ProtocolModel.layout(state.config).frameBytes} Bytes / 帧。` : `已配置前 ${state.config.wordCount} 个 Word；实际通道数随帧长变化。`);
+      if (result.migrationNotice) appendLog(result.migrationNotice, "warning");
+      showToast("配置已载入", result.migrationNotice || (state.config.protocol.kind === "delimited" ? "按帧尾收帧；数据域由接收流与字段配置决定。" : `固定 ${window.ProtocolModel.layout(state.config).frameBytes} Bytes / 帧。`));
       render();
       protocolEditor?.reset();
     } catch (error) {

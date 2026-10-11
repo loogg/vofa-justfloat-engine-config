@@ -16,7 +16,7 @@ test('reset creates one canvas with a single managed receive/output pair and no 
   assert.deepEqual(scene.flows.filter((node) => node.z).map((node) => node.type), ['vofa-receive', 'vofa-output']);
   assert.deepEqual(scene.flows[1].wires, [['output']]);
   assert.deepEqual(scene.flows[2].wires, []);
-  assert.equal(scene.flows[1].images, false);
+  assert.equal(Object.hasOwn(scene.flows[1], 'images'), false);
   assert.equal(flow.compile(scene).valid, false);
   assert.equal(flow.normalize(scene).version, 3);
 });
@@ -70,13 +70,34 @@ test('data subflow boundary wires may end at a native reroute junction', () => {
   assert.equal(flow.compile(scene).valid, false);
 });
 
-test('complete JustFloat nodes retain the legacy parser strategy', () => {
+test('complete old JustFloat nodes migrate to generic sampling', () => {
   const legacy = { version: 2, engineName: 'Legacy Graph', wordCount: 2, fields: [{ wordIndex: 1, type: 'int16', bitOffset: 8, name: 'signed' }] };
-  const result = generator.validateConfig({ ...legacy, canvas: flow.seed(legacy) });
-  assert.equal(result.valid, true);
-  assert.equal(result.config.version, 2);
-  assert.equal(result.config.protocol, undefined);
-  assert.deepEqual(result.config.fields, legacy.fields);
+  const v3 = flow.seed(legacy);
+  const v2 = { version: 2, kind: 'justfloat', byteOrder: 'little', flows: JSON.parse(JSON.stringify(v3.flows)).filter((node) => node.type !== 'vofa-tail') };
+  const receive = v2.flows.find((node) => node.type === 'vofa-receive');
+  receive.type = 'vofa-justfloat';
+  v2.flows.find((node) => node.id === 'words-1').wires = [['output']];
+  for (const canvas of [v3, v2, flow.seedLegacy(legacy)]) {
+    const result = generator.validateConfig({ ...legacy, canvas });
+    assert.equal(result.valid, true, result.errors.join('; '));
+    assert.equal(result.config.version, 3);
+    assert.deepEqual(result.config.protocol, model.sampleDefaults());
+    assert.deepEqual(result.config.fields, legacy.fields);
+  }
+});
+
+test('old image-enabled receive nodes migrate without losing placement or field mappings', () => {
+  const legacy = { version: 2, engineName: 'Old Images', wordCount: 1, fields: [{ wordIndex: 0, type: 'uint16', bitOffset: 8, name: 'sample' }] };
+  const canvas = flow.seed(legacy);
+  canvas.flows.find((node) => node.type === 'vofa-receive').images = true;
+  const before = JSON.stringify(canvas);
+  const normalized = generator.normalizeConfig({ ...legacy, canvas });
+  assert.equal(JSON.stringify(canvas), before);
+  assert.deepEqual(normalized.fields, legacy.fields);
+  assert.equal(normalized.protocol.kind, 'delimited');
+  assert.equal(normalized.canvas.flows.some((node) => Object.hasOwn(node, 'images')), false);
+  assert.deepEqual(normalized.canvas.flows.map(({ x, y }) => [x, y]), canvas.flows.map(({ x, y }) => [x, y]));
+  assert.equal(generator.validateConfig(normalized).valid, true);
 });
 
 test('disconnected, branching, cyclic and invalid field-layout graphs block generation', () => {

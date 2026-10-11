@@ -11,6 +11,7 @@
   function normalize(scene) {
     if (!plain(scene) || ![1, 2, 3].includes(scene.version) || !Array.isArray(scene.flows) || scene.flows.length > 1024) throw new Error('Node-RED 画布配置无效，最多支持 1024 个对象。');
     const copy = clone(scene);
+    if (copy.version === 3) for (const node of copy.flows) if (plain(node) && node.type === 'vofa-receive') delete node.images;
     const ids = new Set();
     for (const entry of copy.flows) {
       if (!plain(entry) || !validId(entry.id) || ids.has(entry.id)) throw new Error('画布节点 ID 无效或重复。');
@@ -143,7 +144,7 @@
         if (chain.length !== 2) fail('JustFloat 是完整协议积木，直接连接 VOFA+ 输出。');
         const layout = dataLayout(chain[0].dataRef);
         if (layout.mode !== 'words' || layout.byteOrder !== 'little') fail('JustFloat 数据域使用小端 4 字节 Word。');
-        return { valid: true, errors: [], config: { version: 2, wordCount: layout.wordCount, fields: layout.fields.length ? layout.fields : Array.from({ length: layout.wordCount }, (_, wordIndex) => ({ wordIndex, type: 'float', bitOffset: 0, name: `ch${wordIndex}` })) } };
+        return { valid: true, errors: [], config: { version: 3, protocol: model.sampleDefaults(), wordCount: layout.wordCount, fields: layout.fields.length ? layout.fields : Array.from({ length: layout.wordCount }, (_, wordIndex) => ({ wordIndex, type: 'float', bitOffset: 0, name: `ch${wordIndex}` })) } };
       }
       if (chain[0].type !== 'vofa-header' || !/^subflow:/.test(chain[1]?.type || '')) fail('主流程需按 帧头 → 数据域 → 可选校验/帧尾 → VOFA+ 输出 连接。');
       const layout = dataLayout(chain[1].type.slice(8), chain[1]);
@@ -212,8 +213,8 @@
       const wordsOnly = data.every((node) => node.type === 'vofa-word');
       if (data.some((node) => node.output !== undefined && typeof node.output !== 'boolean' || node.mappings?.some((field) => field.output !== undefined && typeof field.output !== 'boolean'))) fail('字段输出选项必须是布尔值。');
       if (scene.kind === 'justfloat') {
-        if (!wordsOnly || crc || tail || scene.byteOrder !== 'little') fail('JustFloat 数据链仅使用小端 4 字节 Word，保留其原有收帧规则。');
-        return { valid: true, errors: [], config: { version: 2, wordCount: data.length, fields: wordFields.length ? wordFields : data.map((_node, wordIndex) => ({ wordIndex, type: 'float', bitOffset: 0, name: `ch${wordIndex}` })) } };
+        if (!wordsOnly || crc || tail || scene.byteOrder !== 'little') fail('旧 JustFloat 数据链仅使用小端 4 字节 Word。');
+        return { valid: true, errors: [], config: { version: 3, protocol: model.sampleDefaults(), wordCount: data.length, fields: wordFields.length ? wordFields : data.map((_node, wordIndex) => ({ wordIndex, type: 'float', bitOffset: 0, name: `ch${wordIndex}` })) } };
       }
       const p = model.defaults(wordsOnly ? 'words' : 'custom');
       p.header = chain[0].hex; p.tail = tail?.hex || ''; p.byteOrder = scene.byteOrder;
@@ -249,7 +250,7 @@
   }
   function seed(config) {
     const old = seedV2(config), p = config.protocol, flows = old.flows;
-    const receive = { id: 'receive', type: 'vofa-receive', z: ROOT, name: '', x: 130, y: 160, framing: !p || p.kind === 'delimited' ? 'delimited' : 'fixed', repeat: !p || p.repeatWords === true, images: !p, wires: [[]] };
+    const receive = { id: 'receive', type: 'vofa-receive', z: ROOT, name: '', x: 130, y: 160, framing: !p || p.kind === 'delimited' ? 'delimited' : 'fixed', repeat: !p || p.repeatWords === true, wires: [[]] };
     const parts = flows.filter((node) => node.z === ROOT && node.type !== 'vofa-justfloat' && (node.type !== 'vofa-header' || p?.header));
     for (const node of parts.filter((node) => node.type === 'vofa-word')) node.mappings = node.mappings.map((field, index) => ({ ...field, _refId: field._refId ?? String(index) }));
     if (!p) parts.splice(parts.length - 1, 0, { id: 'tail', type: 'vofa-tail', z: ROOT, name: '', hex: '0000807F', wires: [[]] });
@@ -269,7 +270,7 @@
   function empty(engineName) {
     return { version: 3, byteOrder: 'little', flows: [
       { id: ROOT, type: 'tab', label: engineName || '协议结构', disabled: false, info: '在接收流和输出之间插入协议模块。' },
-      { id: 'receive', type: 'vofa-receive', z: ROOT, name: '', x: 150, y: 160, framing: 'fixed', repeat: true, images: false, wires: [['output']] },
+      { id: 'receive', type: 'vofa-receive', z: ROOT, name: '', x: 150, y: 160, framing: 'fixed', repeat: true, wires: [['output']] },
       { id: 'output', type: 'vofa-output', z: ROOT, name: '', x: 750, y: 160, wires: [] }
     ] };
   }
@@ -298,7 +299,7 @@
       for (const id of seen) if (id !== outputs[0].id && nodes.find((node) => node.id === id).wires?.[0]?.length !== 1) fail('第一阶段仅支持顺序校验，请移除分支连线。');
       const receive = ordered.shift(); ordered.pop();
       if (receive?.type !== 'vofa-receive' || !['fixed', 'delimited'].includes(receive.framing)) fail('请从接收流节点开始，并选择收帧规则。');
-      if (typeof receive.repeat !== 'boolean' || typeof receive.images !== 'boolean') fail('接收流选项必须是布尔值。');
+      if (typeof receive.repeat !== 'boolean') fail('接收流选项必须是布尔值。');
       const header = ordered[0]?.type === 'vofa-header' ? ordered.shift() : null;
       const tail = ordered.at(-1)?.type === 'vofa-tail' ? ordered.pop() : null;
       const crc = ordered.at(-1)?.type === 'vofa-crc' ? ordered.pop() : null;
@@ -314,10 +315,6 @@
         if (wordsOnly && !muted) node.mappings.sort((a, b) => a.bitOffset - b.bitOffset);
       }
       const wordFields = data.flatMap((node, wordIndex) => (node.mappings || []).map(({ _refId, ...field }) => ({ wordIndex, ...field, name: field.name || '' })));
-      if (receive.images) {
-        if (receive.framing !== 'delimited' || !receive.repeat || header || crc || !wordsOnly || muted || ordered.some((node) => node.type === 'vofa-check') || scene.byteOrder !== 'little' || model.hex(model.bytes(tail?.hex || '')) !== '00 00 80 7F') fail('图片兼容需使用无帧头、小端 Word、后续 Word 和 00 00 80 7F 帧尾。添加值校验或其他字段时，请在接收流中关闭图片兼容。');
-        return { valid: true, errors: [], config: { version: 2, wordCount: data.length, fields: wordFields.length ? wordFields : data.map((_node, wordIndex) => ({ wordIndex, type: 'float', bitOffset: 0, name: 'ch' + wordIndex })) } };
-      }
       const p = model.defaults(wordsOnly && !muted ? 'words' : 'custom');
       p.kind = receive.framing; p.byteOrder = scene.byteOrder; p.tail = tail?.hex || '';
       const headers = header ? header.hex.split(/[\n;,]+/).map((value) => value.trim().replace(/\s/g, '').toUpperCase()).filter(Boolean) : [];

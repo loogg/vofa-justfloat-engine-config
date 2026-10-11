@@ -29,6 +29,9 @@
   function defaults(mode = "words") {
     return { kind: "fixed", dataMode: mode, header: "AA55", tail: "", byteOrder: "little", dataFields: [], crc: { algorithm: "crc16-modbus", scope: "data", byteOrder: "little" } };
   }
+  function sampleDefaults() {
+    return { ...defaults(), kind: 'delimited', header: '', tail: '0000807F', repeatWords: true, crc: { algorithm: 'none', scope: 'data', byteOrder: 'little' } };
+  }
   function normalize(value) {
     if (!object(value)) throw new Error("protocol 必须是对象。");
     const crc = object(value.crc) ? value.crc : {};
@@ -100,7 +103,7 @@
     const errors = [];
     const p = config.protocol;
     if (!object(p)) return ["protocol 必须是对象。"];
-    if (config.version !== 3) errors.push("固定结构协议使用配置 version: 3。");
+    if (config.version !== 3) errors.push("通用采样协议使用配置 version: 3。");
     if (!["fixed", "delimited"].includes(p.kind)) errors.push("收帧规则必须是 fixed 或 delimited。");
     if (!["words", "custom"].includes(p.dataMode)) errors.push("数据域模式必须是 words 或 custom。");
     if (!["little", "big"].includes(p.byteOrder)) errors.push("数据字节序必须是 little 或 big。");
@@ -372,28 +375,5 @@
     for (const language of Object.keys(descriptions)) descriptions[language].format = (displayName || config.engineName || "") + ": " + details[language] + "\n" + mapping + (checks ? "\n" + checks : "") + "\n" + warning;
     return descriptions;
   }
-  function previewJustFloat(config, text) {
-    const compatible = { ...config, version: 3, protocol: { ...defaults(), kind: "delimited", header: "", tail: "0000807F", repeatWords: true, crc: { algorithm: "none", scope: "data", byteOrder: "little" } } };
-    const l = layout(compatible), sampleHex = makeSample(compatible), data = bytes(text === "" ? sampleHex : text), frames = [];
-    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    let begin = 0, rejected = 0;
-    for (let i = 3; i < data.length; i++) {
-      if (view.getUint32(i - 3, true) !== 0x7f800000) continue;
-      let end = i, imageSize = 0, image = null;
-      if (i + 4 < data.length && view.getUint32(i + 1, true) === 0x7f800000) {
-        i += 4;
-        if (i - begin + 1 !== 28) break;
-        imageSize = view.getInt32(i - 23, true);
-        if (imageSize < 0 || i + imageSize >= data.length) break;
-        image = { imageId: view.getInt32(i - 27, true), width: view.getInt32(i - 19, true), height: view.getInt32(i - 15, true), format: view.getInt32(i - 11, true) };
-        end = i + imageSize; i = end;
-      }
-      if (image || (end - begin + 1) % 4 === 0) frames.push({ start: begin, end, crc: 0, imageSize, ...(image || {}), channels: image ? [] : decode(data.subarray(begin, end + 1), l, compatible.protocol) });
-      else rejected++;
-      begin = i + 1;
-      if (frames.length > 256) throw new Error("单次试解析最多支持 256 帧。");
-    }
-    return { sampleHex, frameBytes: null, inputBytes: data.length, consumedBytes: begin, remainingBytes: data.length - begin, rejected, crcFailure: null, checkFailure: null, frames };
-  }
-  return Object.freeze({ TYPES, CRCS, defaults, normalize, validate, bytes, hex, fieldSize, layout, fields, outputs, headerValues, wordData, fieldBounds, matchesCheck, readField, crcParameters, calculateCrc, preview, previewJustFloat, makeSample, descriptions });
+  return Object.freeze({ TYPES, CRCS, defaults, sampleDefaults, normalize, validate, bytes, hex, fieldSize, layout, fields, outputs, headerValues, wordData, fieldBounds, matchesCheck, readField, crcParameters, calculateCrc, preview, makeSample, descriptions });
 });

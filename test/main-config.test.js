@@ -139,7 +139,9 @@ test('open preserves version 1 migration for saved and wrapped configurations', 
   delete legacy.engineName;
   for (const document of [legacy, { generator: 'vofa-justfloat-engine-builder', version: 1, config: legacy }]) {
     application.chooseOpen(writeJson(directory, 'legacy.json', document));
-    assert.deepEqual((await application.invoke('config:open', null)).config, normalizeConfig(legacy));
+    const loaded = await application.invoke('config:open', null);
+    assert.deepEqual(loaded.config, normalizeConfig(legacy));
+    assert.match(loaded.migrationNotice, /通用采样解析.*保留字段映射.*原生 JustFloat/);
   }
 });
 
@@ -152,7 +154,7 @@ test('invalid markers and plugin descriptions report useful errors and nested co
     [{ ...marker, generator: 'another-tool' }, /生成器配置文件无效/],
     [{ ...marker, version: 99 }, /版本不受支持/],
     [{ ...marker, config: { ...config, wordCount: 0 } }, /wordCount must be an integer/],
-    [{ ...marker, config: { ...config, fields: [] } }, /fields must contain at least one/],
+    [{ ...marker, config: { ...config, fields: null } }, /fields must contain at least one/],
     [JSON.parse(fs.readFileSync(path.join(fixtureRepo, 'dataengines/generated/justfloat.json'), 'utf8')), /插件描述文件.*不包含通道配置/]
   ];
   for (const [document, error] of cases) {

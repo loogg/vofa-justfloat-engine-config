@@ -5,6 +5,7 @@ const model = require('../src/protocol');
 const flow = require('../src/protocol-flow');
 const generator = require('../src/generator');
 const { createBackendService } = require('../src/backend/service');
+const { standardStreams } = require('./stream-scenarios');
 const config = (dataFields, extra = {}) => ({
   version: 3, engineName: 'Validated Sensor', wordCount: 1, fields: [],
   protocol: { ...model.defaults('custom'), dataFields, crc: { algorithm: 'none', scope: 'data', byteOrder: 'little' }, ...extra }
@@ -103,16 +104,72 @@ test('new canvas checks refer to preceding fields and do not occupy bytes or req
   assert.equal(flow.compile(scene).valid, false);
 });
 
-test('legacy JustFloat previews preserve invalid-boundary consumption, short Words and images', async () => {
+test('legacy configs use generic previews and recover one dirty byte before a sampling frame', async () => {
   const c = { version: 2, engineName: 'Legacy Preview', wordCount: 2, fields: [{ wordIndex: 0, type: 'uint8', bitOffset: 0, name: 'address' }] };
   const service = createBackendService({ mode: 'test' });
   assert.deepEqual((await service.invoke('previewFrame', [c, '01 00 00 00 00 00 80 7F'])).frames[0].channels.map((channel) => channel.value), [1]);
-  const bad = model.previewJustFloat(c, '99 01 00 00 00 00 00 80 7F');
-  assert.equal(bad.rejected, 1); assert.equal(bad.consumedBytes, 9);
-  const image = '00 00 00 00 02 00 00 00 01 00 00 00 02 00 00 00 00 00 00 00 00 00 80 7F 00 00 80 7F AA BB';
-  assert.equal(model.previewJustFloat(c, image).frames[0].imageSize, 2);
-  assert.equal(model.previewJustFloat(c, image.slice(0, -3)).consumedBytes, 0);
+  const recovered = await service.invoke('previewFrame', [c, '99 01 00 00 00 00 00 80 7F']);
+  assert.equal(recovered.rejected, 1);
+  assert.equal(recovered.consumedBytes, 9);
+  assert.equal(recovered.frames[0].start, 1);
+  assert.deepEqual(recovered.frames[0].channels.map((channel) => channel.value), [1]);
+  assert.equal(Object.hasOwn(recovered.frames[0], 'imageSize'), false);
   assert.equal(generator.validateConfig({ ...c, canvas: flow.seed(c) }).valid, true);
+});
+
+function receiveChunks(c, scenario) {
+  let buffer = Buffer.alloc(0);
+  const all = [];
+  for (const [index, chunk] of scenario.chunks.entries()) {
+    buffer = Buffer.concat([buffer, Buffer.from(model.bytes(chunk))]);
+    const parsed = buffer.length ? model.preview(c, model.hex(buffer)) : { consumedBytes: 0, frames: [] };
+    assert.ok(parsed.consumedBytes >= 0 && parsed.consumedBytes <= buffer.length);
+    const channels = parsed.frames.map((frame) => frame.channels.map((channel) => channel.value));
+    buffer = buffer.subarray(parsed.consumedBytes);
+    if (scenario.steps) {
+      assert.deepEqual(channels, scenario.steps[index].channels, `${scenario.name} step ${index}`);
+      assert.equal(parsed.consumedBytes, scenario.steps[index].consumed, `${scenario.name} consumption ${index}`);
+      assert.equal(model.hex(buffer), scenario.steps[index].remaining, `${scenario.name} retained bytes ${index}`);
+    }
+    all.push(...channels);
+  }
+  assert.deepEqual(all, scenario.channels, scenario.name);
+  assert.equal(model.hex(buffer), scenario.remaining, `${scenario.name} final bytes`);
+}
+
+test('fixed frames survive every split point, repeated partials and concatenation with a following fragment', () => {
+  const c = config([{ type: 'uint8', name: 'address', output: false }, { type: 'uint16', name: 'value' }], {
+    headerValues: ['AA55', 'AA56'], tail: '0D0A', checks: [{ field: 0, operator: 'in', values: [1, 2] }],
+    crc: { algorithm: 'crc16-modbus', scope: 'header-data', byteOrder: 'little' }
+  });
+  const frame = model.bytes(model.makeSample(c)), values = [1];
+  for (const scenario of standardStreams(frame, values)) receiveChunks(c, scenario);
+});
+
+test('headerless sample frames retain split tails and consecutive partial Words in the same stream', () => {
+  const c = generator.normalizeConfig({ version: 2, engineName: 'Fragmented Samples', wordCount: 2, fields: [] });
+  const frame = model.bytes('00 00 C0 3F 00 00 20 40 00 00 80 7F');
+  for (const scenario of standardStreams(frame, [1.5, 2.5])) receiveChunks(c, scenario);
+  receiveChunks(c, { name: 'unaligned-noise', chunks: ['99 00', '00 C0', '3F 00 00', '80', '7F 00 00 20', '40 00 00 80 7F'], channels: [[1.5], [2.5]], remaining: '' });
+});
+
+test('false overlapping headers, invalid checks and corrupt frames recover across chunk boundaries', () => {
+  const c = config([{ type: 'uint8', name: 'address', output: false }, { type: 'uint8', name: 'value' }], { header: 'AAAA', checks: [{ field: 0, operator: 'eq', values: [1] }] });
+  receiveChunks(c, { name: 'dirty-overlapping-header', chunks: ['99 AA', 'AA AA', '01', '2A 88 AA AA', 'FF AA', 'AA 01 2B AA', 'AA', '01 2C'], channels: [[42], [43], [44]], remaining: '' });
+  const checked = config([{ type: 'uint8', name: 'value' }], { tail: '0D0A', crc: { algorithm: 'crc16-modbus', scope: 'data', byteOrder: 'little' } });
+  const good = Buffer.from(model.bytes(model.makeSample(checked)));
+  const badCrc = Buffer.from(good); badCrc[model.layout(checked).crcOffset] ^= 1;
+  const badTail = Buffer.from(good); badTail[good.length - 1] ^= 1;
+  const wire = Buffer.concat([Buffer.from([0x99, 0xbb]), badCrc, badTail, good, good]);
+  receiveChunks(checked, { name: 'crc-and-tail-recovery', chunks: [model.hex(wire.subarray(0, 5)), model.hex(wire.subarray(5, 13)), model.hex(wire.subarray(13, wire.length - 1)), model.hex(wire.subarray(-1))], channels: [[1], [1]], remaining: '' });
+});
+
+test('tail-only protocols cannot distinguish garbage that satisfies the complete wire structure', () => {
+  const c = generator.normalizeConfig({ version: 2, engineName: 'Tail Only', wordCount: 1, fields: [] });
+  const result = model.preview(c, '99 99 99 99 00 00 C0 3F 00 00 80 7F');
+  assert.equal(result.frames.length, 1);
+  assert.equal(result.frames[0].channels.length, 2);
+  assert.equal(result.frames[0].channels[1].value, 1.5);
 });
 
 test('Word schema normalization, canvas migration and Backend preview preserve muted raw fields', async () => {
